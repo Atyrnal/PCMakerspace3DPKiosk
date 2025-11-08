@@ -3,9 +3,9 @@
 #include <QQmlApplicationEngine>
 #include "headers/ltx2aQT.h"
 #include <QTimer>
-#include "headers/qrmanager.h"
 #include <QQmlContext>
 #include "headers/secrets.h"
+#include "headers/qtbackend.h"
 
 //Atyrnal 10/29/2025
 
@@ -15,21 +15,10 @@ LTx2A rfidReader;
 
 enum AppState {
     Idle,
-    Register,
-    Welcome
+    Message,
+    Scan,
+    Printing
 };
-
-void updateQR(QObject* root, QRManager* manager) { //Handles updating the qr
-    manager->updateQRCode(QString(FORMURL) + rfidReader.getNext().id.trimmed()); //Re-generate the QR Image and draw it
-    root->setProperty("appstate", AppState::Register); //Trigger ui state transition from Idle to QR
-    QTimer::singleShot(16000, root, [root, manager]() { //Wait 12000ms, then
-        if (rfidReader.hasNext()) { //If another card has been scanned
-            updateQR(root, manager); //Update the QR again
-        } else {
-            root->setProperty("appstate", AppState::Idle); //Otherwise transition uo state back to Idles
-        }
-    });
-}
 
 int main(int argc, char *argv[])
 {
@@ -46,22 +35,24 @@ int main(int argc, char *argv[])
         &app,
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
-    QRImageProvider* provider = new QRImageProvider; //Initialize qr image provider (dynamically provides images to the qml ui)
-    provider->setData("https://atyrnal.dev"); //Inital qr code before any cards are scanned
-    engine.addImageProvider("qr", provider); //Register the image provider so it can be accessed by QML
-    QRManager* manager = new QRManager(provider); //Create the qr manager (interacts with ui and qr provider to handle updating the qr code)
-    engine.rootContext()->setContextProperty("QRManager", manager); //Expose the manager functions to QML
-    engine.loadFromModule("PCMakerspaceCheckin", "Main"); //Load the QML Main.qml declarative ui file
+    engine.loadFromModule("PCMakerspace3DPKiosk", "Main"); //Load the QML Main.qml declarative ui file
 
 
 
     QObject* root = engine.rootObjects().at(0); //Get the root object (in this case the Window)
+    QTBackend bk;
+    engine.rootContext()->setContextProperty("backend", &bk);
 
-    QObject::connect(&rfidReader, &LTx2A::cardScanned, root, [root, manager]() { //Connect the rfidReader cardScanned event to the lambda
+    QObject::connect(&rfidReader, &LTx2A::cardScanned, root, [root]() { //Connect the rfidReader cardScanned event to the lambda
         if (rfidReader.hasNext()) { //If the cards scanned queue is not empty
-            updateQR(root, manager); //In the future change this to handle airtable information and welcome people
+            qDebug() << "Card scanned" << rfidReader.getNext().id;
         }
     });
+
+    QTimer::singleShot(5000, root, [root](){
+        root->setProperty("appstate", AppState::Scan);
+    });
+
 
     return app.exec(); //run the app
 }
