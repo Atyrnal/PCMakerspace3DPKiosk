@@ -1,3 +1,9 @@
+/*
+ *
+ * Copyright (c) 2025 Antony Rinaldi
+ *
+*/
+
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>

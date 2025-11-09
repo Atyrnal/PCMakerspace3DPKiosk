@@ -1,3 +1,9 @@
+/*
+ *
+ * Copyright (c) 2025 Antony Rinaldi
+ *
+*/
+
 #include "headers/qtbackend.h"
 #include <QProcess>
 #include <QDebug>

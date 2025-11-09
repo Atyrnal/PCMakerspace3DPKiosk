@@ -1,3 +1,10 @@
+/*
+ *
+ * Copyright (c) 2025 Antony Rinaldi
+ *
+*/
+
+
 #include "headers/prusalink.h"
 #include "headers/secrets.h"
 #include <QHttpMultiPart>

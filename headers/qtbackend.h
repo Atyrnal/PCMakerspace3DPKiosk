@@ -1,5 +1,10 @@
 #ifndef QTBACKEND_H
 #define QTBACKEND_H
+/*
+ *
+ * Copyright (c) 2025 Antony Rinaldi
+ *
+*/
 
 #include <QObject>
 #include <QFile>

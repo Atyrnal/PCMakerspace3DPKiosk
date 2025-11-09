@@ -1,3 +1,9 @@
+/*
+ *
+ * Copyright (c) 2025 Antony Rinaldi
+ *
+*/
+
 #ifndef LTX2AQT_H
 #define LTX2AQT_H
 

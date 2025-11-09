@@ -1,3 +1,10 @@
+/*
+ *
+ * Copyright (c) 2025 Antony Rinaldi
+ *
+*/
+
+
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Controls

@@ -1,3 +1,9 @@
+/*
+ *
+ * Copyright (c) 2025 Antony Rinaldi
+ *
+*/
+
 #ifndef PRUSALINK_H
 #define PRUSALINK_H
 

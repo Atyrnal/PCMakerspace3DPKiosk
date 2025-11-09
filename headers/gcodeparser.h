@@ -1,3 +1,9 @@
+/*
+ *
+ * Copyright (c) 2025 Antony Rinaldi
+ *
+*/
+
 #ifndef GCODEPARSER_H
 #define GCODEPARSER_H
 
