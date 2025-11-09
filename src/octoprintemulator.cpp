@@ -3,6 +3,7 @@
 #include <QTcpServer>
 #include <QHttpServerRequest>
 #include <QFile>
+#include <QDir>
 #include <QHttpServerResponse>
 #include "headers/gcodeparser.h"
 
@@ -48,13 +49,13 @@ OctoprintEmulator::OctoprintEmulator(QObject* parent) : QObject(parent), server(
         }
         if (!obj.keys().contains("command")) return QHttpServerResponse("Expected command", QHttpServerResponder::StatusCode::BadRequest);
         if (obj.value("command") != "start") return QHttpServerResponse(QHttpServerResponder::StatusCode::NotImplemented);
-        QMap<QString, QString> properties = GCodeParser::parseFile(fileInfo.absoluteFilePath());
+        QMap<QString, QString> properties = GCodeParser::parseFile(fileInfo->absoluteFilePath());
         QVariantMap propertiesForJS;
         for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
             propertiesForJS.insert(it.key(), it.value());
         }
         emit jobInfoLoaded(propertiesForJS);
-        emit jobLoaded(fileInfo.absoluteFilePath(), properties);
+        emit jobLoaded(fileInfo->absoluteFilePath(), properties);
         return QHttpServerResponse(QHttpServerResponder::StatusCode::NoContent);
     });
 
@@ -88,6 +89,7 @@ OctoprintEmulator::OctoprintEmulator(QObject* parent) : QObject(parent), server(
         static QRegularExpression fileNameRe(R"delim(filename="([^"]+)")delim");
         QRegularExpressionMatch fileNameMatch = fileNameRe.match(bodyStr);
         QString originalFileName = fileNameMatch.hasMatch() ? fileNameMatch.captured(1) : "uploaded.gcode";
+        QString filePath = "uploaded/" + originalFileName;
 
         QList<QString> multipartPartsStr = bodyStr.split(boundary);
         QList<QByteArray> multipartParts;
@@ -125,19 +127,27 @@ OctoprintEmulator::OctoprintEmulator(QObject* parent) : QObject(parent), server(
                 printFlag = part.contains("true");
             }
         }
-
-        // Save file to disk (optional: use a temp filename)
-        QString saveFileName = "uploaded.gcode";
-        QFile file(saveFileName);
+        QDir uploadDir = QDir("uploaded");
+        if (!uploadDir.exists()) {
+            uploadDir.mkpath(".");
+        }
+        QFileInfoList oldfiles = uploadDir.entryInfoList(QDir::Files);
+        for (int i = 0; i < oldfiles.size(); ++i) {
+            const QFileInfo &fileInfo = oldfiles.at(i);
+            if (!uploadDir.remove(fileInfo.fileName())) {
+                qWarning() << "Failed to remove file:" << fileInfo.fileName();
+            }
+        }
+        QFile file(filePath);
         if (!file.open(QIODevice::WriteOnly)) {
             return QHttpServerResponse("Failed to write file", QHttpServerResponder::StatusCode::InternalServerError);
         }
         file.write(fileData);
         file.close();
-        this->fileInfo = QFileInfo(saveFileName);
+        this->fileInfo = new QFileInfo(filePath);
 
         // Parse the gcode properties
-        QMap<QString, QString> properties = GCodeParser::parseFile(fileInfo.absoluteFilePath());
+        QMap<QString, QString> properties = GCodeParser::parseFile(fileInfo->absoluteFilePath());
         properties.insert("filename", originalFileName);
         QVariantMap propertiesForJS;
         for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
@@ -145,17 +155,17 @@ OctoprintEmulator::OctoprintEmulator(QObject* parent) : QObject(parent), server(
         }
 
         emit jobInfoLoaded(propertiesForJS);
-        emit jobLoaded(fileInfo.absoluteFilePath(), properties);
+        emit jobLoaded(fileInfo->absoluteFilePath(), properties);
 
         // Build JSON response
         QJsonObject localFile{
             {"name", originalFileName},
-            {"path", saveFileName},
+            {"path", filePath},
             {"type", "machinecode"},
             {"origin", location},
             {"refs", QJsonObject{
-                         {"resource", QString("http://localhost:5000/api/files/%1/%2").arg(location, saveFileName)},
-                         {"download", QString("http://localhost:5000/downloads/files/%1/%2").arg(location, saveFileName)}
+                         {"resource", QString("http://localhost:5000/api/files/%1/%2").arg(location, filePath)},
+                         {"download", QString("http://localhost:5000/downloads/files/%1/%2").arg(location, filePath)}
                      }}
         };
         QJsonObject files{{location, localFile}};

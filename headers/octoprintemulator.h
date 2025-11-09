@@ -14,7 +14,7 @@ signals:
     void jobInfoLoaded(const QVariantMap &properties);
 private:
     QHttpServer server;
-    QFileInfo fileInfo;
+    QFileInfo* fileInfo = nullptr;
 };
 
 #endif // OCTOPRINTEMULATOR_H

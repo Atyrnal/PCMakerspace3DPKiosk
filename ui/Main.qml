@@ -462,7 +462,7 @@ ApplicationWindow { //Root app window
                     FileDialog {
                         id: gcodeFileDialog
                         title: "Select a file"
-                        nameFilters: ["GCode File (*.gcode *.bgcode *.gcode.3mf)"]
+                        nameFilters: ["GCode File (*.gcode *.bgcode)"]
                         onAccepted: {
                             rootWindow.appstate = Main.AppState.Loading
                             backend.fileUploaded(gcodeFileDialog.selectedFile)
