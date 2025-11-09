@@ -2,10 +2,12 @@ import QtQuick
 import QtQuick.Effects
 import QtQuick.Controls
 import QtQuick.Controls.Material
+import QtQuick.Dialogs
 
 //UI declarations
 
 Window { //Root app window
+    id: rootWindow
     visible: true
     width: 800
     height: 600
@@ -15,9 +17,12 @@ Window { //Root app window
 
     enum AppState {
         Idle,
+        Prep,
         Message,
-        Scan,
-        Printing
+        UserScan,
+        StaffScan,
+        Printing,
+        Loading
     }
 
     Material.theme : Material.Dark
@@ -26,6 +31,7 @@ Window { //Root app window
     property int transitionDuration: 1000;
 
     Item { //Container
+        id: rootItem
         anchors.fill: parent;
 
         states: [
@@ -50,10 +56,18 @@ Window { //Root app window
                     target: printingFrame
                     opacity: 0
                 }
+                PropertyChanges {
+                    target: prepFrame
+                    opacity: 0
+                }
+                PropertyChanges {
+                    target: loadingFrame
+                    opacity: 0
+                }
             },
             State {
                 name: "scanState"
-                when: appstate == Main.AppState.Scan
+                when: appstate == Main.AppState.UserScan || appstate == Main.AppState.StaffScan
                 PropertyChanges {
                     target: idleFrame
                     opacity: 0
@@ -72,8 +86,143 @@ Window { //Root app window
                     target: printingFrame
                     opacity: 0
                 }
+            },
+            State {
+                name: "prepState"
+                when: appstate == Main.AppState.Prep
+                PropertyChanges {
+                    target: idleFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: scanFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: messageFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: printingFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: prepFrame
+                    opacity: 1
+                    visible: true
+                }
+                PropertyChanges {
+                    target: loadingFrame
+                    opacity: 0
+                    visible: false
+                }
+            },
+            State {
+                name: "messageState"
+                when: appstate == Main.AppState.Message
+                PropertyChanges {
+                    target: idleFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: scanFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: messageFrame
+                    opacity: 1
+                    visible: true
+                }
+                PropertyChanges {
+                    target: printingFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: prepFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: loadingFrame
+                    opacity: 0
+                    visible: false
+                }
+            },
+            State {
+                name: "loadingState"
+                when: appstate == Main.AppState.Loading
+                PropertyChanges {
+                    target: idleFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: scanFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: messageFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: printingFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: prepFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: loadingFrame
+                    opacity: 1
+                    visible: true
+                }
+            },
+            State {
+                name: "printingState"
+                when: appstate == Main.AppState.Printing
+                PropertyChanges {
+                    target: idleFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: scanFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: messageFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: printingFrame
+                    opacity: 1
+                    visible: true
+                }
+                PropertyChanges {
+                    target: prepFrame
+                    opacity: 0
+                    visible: false
+                }
+                PropertyChanges {
+                    target: loadingFrame
+                    opacity: 0
+                    visible: false
+                }
             }
-
         ]
 
         Image {
@@ -129,7 +278,7 @@ Window { //Root app window
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottomMargin: 100
-                width: 420
+                width: 630
                 height: 50
 
                 RoundButton {
@@ -181,7 +330,12 @@ Window { //Root app window
                     id: helpButton
                     anchors.bottom: parent.bottom
                     anchors.left: parent.left
-                    onClicked: backend.helpButtonClicked();
+                    onClicked: {
+                        backend.helpButtonClicked();
+                        messageText.text = "Start by slicing your .obj file\nor selecting a sliced file\nThen scan your ID and follow the\nInstructions on screen to start your print";
+                        messageFrame.nextState = Main.AppState.Idle
+                        rootWindow.appstate = Main.AppState.Message
+                    }
                     width: 200
                     height: 50
                     radius: 5
@@ -220,9 +374,61 @@ Window { //Root app window
                         }
                     }
                 }
+
+                RoundButton {
+                    id: uploadButton
+                    anchors.bottom: parent.bottom
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    onClicked: gcodeFileDialog.open()
+                    width: 200
+                    height: 50
+                    radius: 5
+                    background: Rectangle {
+                        color: parent.down ? "#6b1616" : "#871C1C"
+                        border.width: 1
+                        border.color: "#fff"
+                        radius: 5
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            acceptedButtons: Qt.NoButton
+                            hoverEnabled: true
+                        }
+                    }
+                    Item {
+                        anchors.centerIn: parent
+                        anchors.fill: parent
+                        Image {
+                            id: uploadImage
+                            source: "../resources/upload_file.svg"
+                            height: 24
+                            width: 24
+                            fillMode: Image.PreserveAspectFit
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.leftMargin: 45
+                        }
+
+                        Text {
+                            text: "Upload GCode"
+                            color: "#fff"
+                            anchors.left: uploadImage.right
+                            anchors.leftMargin: 5
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                    FileDialog {
+                        id: gcodeFileDialog
+                        title: "Select a file"
+                        nameFilters: ["GCode File (*.gcode *.bgcode *.gcode.3mf)"]
+                        onAccepted: {
+                            rootWindow.appstate = Main.AppState.Loading
+                            backend.fileUploaded(gcodeFileDialog.selectedFile)
+                        }
+                    }
+                }
             }
         }
-
 
         Item { //scanFrame container
             id: scanFrame
@@ -291,12 +497,47 @@ Window { //Root app window
 
             Text {
                 id: tapText
-                text: "Tap your ID or UCard"
-                font.pointSize: 50
+                text: (rootWindow.appstate == Main.AppState.UserScan) ? "Tap your ID or UCard" : "Tap Staff Card"
+                font.pointSize: 40
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: parent.height * 0.05
-                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottomMargin: 20
+                anchors.right: parent.right
+                anchors.rightMargin: 50
                 color: "#ffffff"
+            }
+
+            RoundButton {
+                id: cancelScanButton
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.leftMargin: 10
+                anchors.bottomMargin: 10
+                onClicked: {
+                    rootWindow.appstate = Main.AppState.Idle
+                    printInfoText.text = "No print information found"
+                }
+                width: 160
+                height: 40
+                radius: 5
+                background: Rectangle {
+                    color: parent.down ? "#6b1616" : "#871C1C"
+                    border.width: 1
+                    border.color: "#fff"
+                    radius: 5
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        acceptedButtons: Qt.NoButton
+                        hoverEnabled: true
+                    }
+                }
+
+                Text {
+                    text: "Cancel"
+                    color: "#fff"
+                    anchors.centerIn: parent
+                }
+
             }
         }
 
@@ -321,18 +562,190 @@ Window { //Root app window
             anchors.fill: parent
             visible: false
             opacity: 0
+            property int nextState: Main.AppState.Idle
 
             Text {
                 id: messageText
-                text: "OOOH FOrm goes here" //In the future this will be set to user name based on airtable data
-                font.pointSize: 100
+                text: "Unknown Error"
+                font.pointSize: 24
                 anchors.horizontalCenter: parent.horizontalCenter;
                 anchors.verticalCenter: parent.verticalCenter;
-                color: "#ffffff"
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                color: "#fff"
+            }
+
+            Connections {
+                target: backend
+                function onMessageReq(msg, btnText, newState) {
+                    messageText.text = msg
+                    messageAcceptText.text = btnText
+                    messageFrame.nextState = newState
+                }
+            }
+
+            RoundButton {
+                id: acceptMessageButton
+                anchors.bottom: parent.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottomMargin: 50
+                onClicked: {
+                    rootWindow.appstate = messageFrame.nextState
+                    messageText.text = "Unknown Error"
+                    messageFrame.nextState = Main.AppState.Idle
+                }
+                width: 160
+                height: 40
+                radius: 5
+                background: Rectangle {
+                    color: parent.down ? "#6b1616" : "#871C1C"
+                    border.width: 1
+                    border.color: "#fff"
+                    radius: 5
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        acceptedButtons: Qt.NoButton
+                        hoverEnabled: true
+                    }
+                }
+
+                Text {
+                    id: messageAcceptText
+                    text: "OK"
+                    color: "#fff"
+                    anchors.centerIn: parent
+                }
+
             }
         }
 
+        Item {
+            id: prepFrame
+            anchors.fill: parent
+            visible: false
+            opacity: 0
 
+            Text {
+                id: printInfoText
+                text: "No print information found"
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                anchors.centerIn: parent
+                color: "#fff"
+            }
+
+            Connections {
+                target: backend
+                function onPrintInfoLoaded(printInfo) {
+                    console.log("Print has been loaded!")
+                    console.log(printInfo)
+                    let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${printInfo.filamentType}\nWeight: ${printInfo.weight}g\nDuration: ${printInfo.duration}`;
+                    if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
+                    printInfoText.text = op
+                }
+            }
+
+            RoundButton {
+                id: cancelPrepButton
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.leftMargin: 10
+                anchors.bottomMargin: 10
+                onClicked: {
+                    rootWindow.appstate = Main.AppState.Idle
+                    printInfoText.text = "No print information found"
+                }
+                width: 160
+                height: 40
+                radius: 5
+                background: Rectangle {
+                    color: parent.down ? "#6b1616" : "#871C1C"
+                    border.width: 1
+                    border.color: "#fff"
+                    radius: 5
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        acceptedButtons: Qt.NoButton
+                        hoverEnabled: true
+                    }
+                }
+
+                Text {
+                    text: "Cancel"
+                    color: "#fff"
+                    anchors.centerIn: parent
+                }
+
+            }
+
+            RoundButton {
+                id: beginPrintButton
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                anchors.rightMargin: 10
+                anchors.bottomMargin: 10
+                onClicked: {
+                    rootWindow.appstate = Main.AppState.UserScan
+                    printInfoText.text = "No print information found"
+                }
+                width: 160
+                height: 40
+                radius: 5
+                background: Rectangle {
+                    color: parent.down ? "#6b1616" : "#871C1C"
+                    border.width: 1
+                    border.color: "#fff"
+                    radius: 5
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        acceptedButtons: Qt.NoButton
+                        hoverEnabled: true
+                    }
+                }
+
+                Text {
+                    text: "Print"
+                    color: "#fff"
+                    anchors.centerIn: parent
+                }
+
+            }
+        }
+
+        Item {
+            id: loadingFrame
+            anchors.fill: parent
+            visible: false
+            opacity: 0
+
+            Image {
+                id: spinnyThing
+                source: "../resources/progress_activity.svg"
+                width: 96
+                height: 96
+                anchors.centerIn: parent
+                fillMode: Image.PreserveAspectFit
+
+                NumberAnimation on rotation {
+                    loops: Animation.Infinite
+                    from: 0
+                    to: 360
+                    duration: 250
+                }
+            }
+
+            Text {
+                text: "Loading"
+                font.pointSize: 24
+                anchors.top: spinnyThing.bottom
+                anchors.topMargin: 15
+                color: "#fff"
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+        }
     }
 }
 

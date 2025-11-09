@@ -1,10 +1,31 @@
 #include "headers/qtbackend.h"
-#include <QFile>
 #include <QProcess>
 #include <QDebug>
+#include <QUrl>
+#include "headers/gcodeparser.h"
 
 
 QTBackend::QTBackend(QObject* parent) : QObject(parent) {}
+
+void QTBackend::showMessage(QObject* root, QString message, QString acceptText, const int &redirectState) {
+    emit messageReq(message, acceptText, redirectState);
+    root->setProperty("appstate", 2);
+}
+
+Q_INVOKABLE void QTBackend::fileUploaded(const QUrl &fileUrl) {
+    QString filepath = fileUrl.toLocalFile();
+    QMap<QString, QString> properties = GCodeParser::parseFile(filepath);
+    qDebug() << properties;
+    QVariantMap propertiesForJS;
+    for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
+        propertiesForJS.insert(it.key(), it.value());
+    }
+    /*for (int p = 0; p < properties.size(); p++) {
+        propertiesForJS.insert(properties.keys()[p], properties[properties.keys()[p]]);
+    }*/
+    emit printInfoLoaded(propertiesForJS);
+    emit printLoaded(filepath, properties);
+}
 
 Q_INVOKABLE void QTBackend::helpButtonClicked() {
     qDebug() << "Help! clicked." << Qt::endl;
