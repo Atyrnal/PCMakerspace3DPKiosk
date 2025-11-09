@@ -97,8 +97,6 @@ int main(int argc, char *argv[])
                 bool isCICS = userQuery.value(0).toBool();
                 bool training = userQuery.value(1).toBool();
                 int authLevel = userQuery.value(2).toInt();
-                qDebug() << userQuery.value(2);
-                qDebug() << authLevel;
                 double printDuration = parseDuration(loadedPrintInfo["duration"]);
                 if (authLevel < 1) { //0 is normal, 1 is staff, 2 is system admin, 3 is supervisor
                     if (!isCICS) return bk.showMessage(root, "Sorry, but only CICS Students\nMay print at the Physical Computing Makerspace", "I Understand");

@@ -25,6 +25,44 @@ Window { //Root app window
         Loading
     }
 
+    Timer {
+        id: stateTimeoutTimer
+        interval: 120000
+        repeat: false
+        onTriggered: {
+            rootWindow.appstate = Main.AppState.Idle
+        }
+    }
+
+    onAppstateChanged: {
+        switch (rootWindow.appstate) {
+        case Main.AppState.Prep:
+        case Main.AppState.Printing:
+        case Main.AppState.UserScan:
+        case Main.AppState.StaffScan:
+        case Main.AppState.Loading:
+            stateTimeoutTimer.restart()
+            break
+
+        case Main.AppState.Idle:
+            stateTimeoutTimer.stop()
+            break
+
+        case Main.AppState.Message:
+            if (messageAcceptText === "Training Completed") {
+                stateTimeoutTimer.stop()
+                break;
+            } else {
+                stateTimeoutTimer.restart()
+                break;
+            }
+
+        default:
+            stateTimeoutTimer.stop()
+            break
+        }
+    }
+
     Material.theme : Material.Dark
 
     property int appstate: Main.AppState.Idle; //Track app state
@@ -613,6 +651,41 @@ Window { //Root app window
                 Text {
                     id: messageAcceptText
                     text: "OK"
+                    color: "#fff"
+                    anchors.centerIn: parent
+                }
+
+            }
+
+            RoundButton {
+                id: cancelMessageButton
+                visible: parent.nextState != Main.AppState.Idle
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.leftMargin: 10
+                anchors.bottomMargin: 10
+                onClicked: {
+                    rootWindow.appstate = Main.AppState.Idle
+                    message.text = "Unknown Error"
+                }
+                width: 160
+                height: 40
+                radius: 5
+                background: Rectangle {
+                    color: parent.down ? "#6b1616" : "#871C1C"
+                    border.width: 1
+                    border.color: "#fff"
+                    radius: 5
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        acceptedButtons: Qt.NoButton
+                        hoverEnabled: true
+                    }
+                }
+
+                Text {
+                    text: "Cancel"
                     color: "#fff"
                     anchors.centerIn: parent
                 }
