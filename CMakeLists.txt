@@ -4,7 +4,7 @@ project(PCMakerspace3DPKiosk VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick SerialPort Svg Sql)
+find_package(Qt6 REQUIRED COMPONENTS Quick SerialPort Svg Sql HttpServer)
 find_package(Qt6 REQUIRED COMPONENTS Core)
 
 qt_standard_project_setup(REQUIRES 6.8)
@@ -42,6 +42,10 @@ qt_add_qml_module(appPCMakerspace3DPKiosk
         src/qtbackend.cpp
         headers/gcodeparser.h
         src/gcodeparser.cpp
+        SOURCES headers/prusalink.h
+        SOURCES src/prusalink.cpp
+        SOURCES headers/octoprintemulator.h
+        SOURCES src/octoprintemulator.cpp
 )
 
 qt_import_qml_plugins(appPCMakerspace3DPKiosk)
@@ -59,7 +63,7 @@ set_target_properties(appPCMakerspace3DPKiosk PROPERTIES
 )
 
 target_link_libraries(appPCMakerspace3DPKiosk
-    PRIVATE Qt6::Quick Qt6::SerialPort Qt6::Svg Qt6::Sql
+    PRIVATE Qt6::Quick Qt6::SerialPort Qt6::Svg Qt6::Sql Qt6::HttpServer
 )
 target_link_libraries(appPCMakerspace3DPKiosk PRIVATE Qt6::Core)
 

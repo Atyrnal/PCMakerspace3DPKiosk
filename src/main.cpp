@@ -8,8 +8,9 @@
 #include <QTimer>
 #include <QQmlContext>
 #include <QRegularExpression>
-#include "headers/secrets.h"
 #include "headers/qtbackend.h"
+#include "headers/prusaLink.h"
+#include "headers/octoprintemulator.h"
 
 //Atyrnal 10/29/2025
 
@@ -66,7 +67,10 @@ int main(int argc, char *argv[])
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
     QTBackend bk;
+    PrusaLink pl;
+    OctoprintEmulator ope;
     engine.rootContext()->setContextProperty("backend", &bk);
+    engine.rootContext()->setContextProperty("octoprintemulator", &ope);
     engine.loadFromModule("PCMakerspace3DPKiosk", "Main"); //Load the QML Main.qml declarative ui file
 
     QFile* loadedPrint = nullptr;
@@ -83,7 +87,13 @@ int main(int argc, char *argv[])
         root->setProperty("appstate", AppState::Prep);
     });
 
-    QObject::connect(&rfidReader, &LTx2A::cardScanned, root, [root, &bk, &currentUserID, &loadedPrintInfo]() { //Connect the rfidReader cardScanned event to the lambda
+    QObject::connect(&ope, &OctoprintEmulator::jobLoaded, root, [root, &loadedPrintFilepath, &loadedPrintInfo](const QString &filepath, const QMap<QString, QString> &printInfo) {
+        loadedPrintFilepath = filepath; //this could be a problem
+        loadedPrintInfo = printInfo;
+        root->setProperty("appstate", AppState::Prep);
+    });
+
+    QObject::connect(&rfidReader, &LTx2A::cardScanned, root, [root, &bk, &currentUserID, &loadedPrintFilepath, &loadedPrintInfo, &pl]() { //Connect the rfidReader cardScanned event to the lambda
         if (rfidReader.hasNext()) { //If the cards scanned queue is not empty
             QString cardid = rfidReader.getNext().id.replace("\"", "").trimmed();
             if (root->property("appstate") == AppState::UserScan) {
@@ -117,7 +127,7 @@ int main(int argc, char *argv[])
                 updateUserQuery.bindValue(":id", currentUserID);
                 updateUserQuery.exec();
             } else return;
-            bk.showMessage(root, "If this were finished we would be printing rn!");
+            bk.showMessage(root, "Printing now!");
             QSqlQuery userQuery2;
             userQuery2.prepare("SELECT printsStarted, filamentUsedGrams, printHours FROM users WHERE id = :id LIMIT 1");
             userQuery2.bindValue(":id", currentUserID);
@@ -140,7 +150,7 @@ int main(int argc, char *argv[])
             if (!updateUserQuery2.exec()) {
                 qCritical() << updateUserQuery2.lastError().text();
             }
-
+            pl.startPrint(loadedPrintFilepath);
         }
     });
 

@@ -126,8 +126,10 @@ QVector<QString> GCodeParser::readGCode(QFile f) {
             plainText = QString(data);
         }
         QVector<QString> lines = plainText.split("\n");
+        f.close();
         return lines;
     }
+    f.close();
     return QVector<QString>();
 }
 
@@ -138,7 +140,9 @@ QVector<QString> GCodeParser::readBGCode(QFile f) {
         QString plainText = QString(data);
         plainText.replace(QChar(0xFFFD), "\n");
         QVector<QString> lines = plainText.split("\n");
+        f.close();
         return lines;
     }
+    f.close();
     return QVector<QString>();
 }

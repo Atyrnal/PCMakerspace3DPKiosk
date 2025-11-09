@@ -700,18 +700,56 @@ Window { //Root app window
             opacity: 0
 
             Text {
-                id: printInfoText
-                text: "No print information found"
+                id: prepLabel
+                text: "Print Information"
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
-                anchors.centerIn: parent
+                anchors.horizontalCenter: parent.horizontalCenter;
+                anchors.top: parent.top
+                anchors.topMargin: 160
+                font.pointSize: 36
+                font.bold: true
                 color: "#fff"
+            }
+
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: prepLabel.bottom
+                anchors.topMargin: 20
+                width: printInfoText.implicitWidth + 20
+                height: printInfoText.implicitHeight + 20
+                color : "#871C1C"
+                border.width: 2
+                border.color: "#fff"
+                radius: 2
+                Text {
+                    id: printInfoText
+                    text: "No print information found"
+                    horizontalAlignment: Text.AlignLeft
+                    verticalAlignment: Text.AlignVCenter
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: 10
+                    color: "#fff"
+                    font.pointSize: 18
+                }
             }
 
             Connections {
                 target: backend
                 function onPrintInfoLoaded(printInfo) {
                     console.log("Print has been loaded!")
+                    console.log(printInfo)
+                    let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${printInfo.filamentType}\nWeight: ${printInfo.weight}g\nDuration: ${printInfo.duration}`;
+                    if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
+                    printInfoText.text = op
+                }
+            }
+
+            Connections {
+                target: octoprintemulator
+                function onJobInfoLoaded(printInfo) {
+                    console.log("Job has been loaded!")
                     console.log(printInfo)
                     let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${printInfo.filamentType}\nWeight: ${printInfo.weight}g\nDuration: ${printInfo.duration}`;
                     if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
