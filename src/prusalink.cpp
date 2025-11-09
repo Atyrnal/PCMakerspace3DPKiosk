@@ -21,28 +21,31 @@ void PrusaLink::startPrint(const QString &fileName) {
 
 void PrusaLink::sendGCode(QString filepath, QString hostname, QString password, QString storageName) {
 
+    //Read gcode file
     QFileInfo fileInfo(filepath);
     QFile file = QFile(filepath);
     if (!file.open(QIODevice::ReadOnly)) {
         qWarning() << "Cannot open file for upload:" << filepath;
         return;
     }
-
     QByteArray fileData = file.readAll();
     file.close();
 
+    //upload the file to the printer via its API
     QUrl uploadUrl(QString("http://%1/api/v1/files/%2/%3").arg(hostname, storageName, fileInfo.fileName()));
     QNetworkRequest uploadReq(uploadUrl);
     uploadReq.setHeader(QNetworkRequest::ContentTypeHeader, "application/octet-stream");
     uploadReq.setHeader(QNetworkRequest::ContentLengthHeader, QByteArray::number(fileData.size()));
     uploadReq.setRawHeader("X-Api-Key", password.toUtf8());
-    uploadReq.setRawHeader("Print-After-Upload", "?1");
+    uploadReq.setRawHeader("Print-After-Upload", "?1"); //Ensure the print starts imidately
     uploadReq.setRawHeader("Overwrite", "?1");
 
 
     QNetworkReply *uploadReply = manager.put(uploadReq, fileData);
 
+    //When uploadreply recieved
     QObject::connect(uploadReply, &QNetworkReply::finished, uploadReply, [=]() {
+        //Log if the upload succeeded or failed
         if (uploadReply->error() != QNetworkReply::NoError) {
             qWarning() << "Upload failed:" << uploadReply->errorString();
             uploadReply->deleteLater();
