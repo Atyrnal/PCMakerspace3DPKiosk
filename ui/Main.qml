@@ -6,7 +6,7 @@ import QtQuick.Dialogs
 
 //UI declarations
 
-Window { //Root app window
+ApplicationWindow { //Root app window
     id: rootWindow
     visible: true
     width: 800
@@ -23,6 +23,10 @@ Window { //Root app window
         StaffScan,
         Printing,
         Loading
+    }
+
+    onClosing: function(close) { //Dont let user close kiosk app
+        close.accepted = false
     }
 
     Timer {
@@ -754,6 +758,12 @@ Window { //Root app window
                     let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${printInfo.filamentType}\nWeight: ${printInfo.weight}g\nDuration: ${printInfo.duration}`;
                     if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
                     printInfoText.text = op
+
+                    rootWindow.flags |= Qt.WindowStaysOnTopHint
+                    rootWindow.show()
+                    rootWindow.raise()
+                    rootWindow.requestActivate()
+                    rootWindow.flags &= ~Qt.WindowStaysOnTopHint
                 }
             }
 

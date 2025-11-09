@@ -31,21 +31,15 @@ qt_add_qml_module(appPCMakerspace3DPKiosk
     SOURCES
         headers/ltx2aQT.h
         src/ltx2aQT.cpp
-        headers/qrprovider.h
-        src/qrprovider.cpp
-        src/qrcodegen.cpp
-        headers/qrcodegen.hpp
-        headers/qrmanager.h
-        src/qrmanager.cpp
         headers/secrets.h
         headers/qtbackend.h
         src/qtbackend.cpp
         headers/gcodeparser.h
         src/gcodeparser.cpp
-        SOURCES headers/prusalink.h
-        SOURCES src/prusalink.cpp
-        SOURCES headers/octoprintemulator.h
-        SOURCES src/octoprintemulator.cpp
+        headers/prusalink.h
+        src/prusalink.cpp
+        headers/octoprintemulator.h
+        src/octoprintemulator.cpp
 )
 
 qt_import_qml_plugins(appPCMakerspace3DPKiosk)

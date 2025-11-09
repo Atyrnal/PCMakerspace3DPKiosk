@@ -11,6 +11,9 @@
 #include "headers/qtbackend.h"
 #include "headers/prusaLink.h"
 #include "headers/octoprintemulator.h"
+#include <QQuickWindow>
+#include <QFile>
+#include <QFileInfo>
 
 //Atyrnal 10/29/2025
 
@@ -55,7 +58,6 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    app.setWindowIcon(QIcon("resources/PC-Logo.ico")); //Set the app Icon (not working)
     rfidReader.start(); //Initialize the RFID reader
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &rfidReader, &LTx2A::stop); //Connect the aboutToQuit app event to the rfidReader's stop function
 
@@ -79,8 +81,9 @@ int main(int argc, char *argv[])
     QString currentUserID;
 
     QObject* root = engine.rootObjects().at(0); //Get the root object (in this case the Window)
-
-
+    QQuickWindow* window = qobject_cast<QQuickWindow*>(root);
+    QIcon icon = QIcon("PCMakerspace3DPKiosk/resources/PC-Logo.ico");
+    window->setIcon(icon);
     QObject::connect(&bk, &QTBackend::printLoaded, root, [root, &loadedPrintFilepath, &loadedPrintInfo](const QString &gcodeFilepath, const QMap<QString, QString> &printInfo) {
         loadedPrintFilepath = gcodeFilepath; //this could be a problem
         loadedPrintInfo = printInfo;
@@ -91,6 +94,10 @@ int main(int argc, char *argv[])
         loadedPrintFilepath = filepath; //this could be a problem
         loadedPrintInfo = printInfo;
         root->setProperty("appstate", AppState::Prep);
+        /*if (root->visibility() == QWindow::Minimized)
+        root->showNormal();
+        root->raise();
+        root->requestActivate();*/
     });
 
     QObject::connect(&rfidReader, &LTx2A::cardScanned, root, [root, &bk, &currentUserID, &loadedPrintFilepath, &loadedPrintInfo, &pl]() { //Connect the rfidReader cardScanned event to the lambda
