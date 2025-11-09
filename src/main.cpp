@@ -20,6 +20,7 @@
 #include <QQuickWindow>
 #include <QFile>
 #include <QFileInfo>
+#include <QDateTime>
 
 //Atyrnal 10/29/2025
 
@@ -163,6 +164,21 @@ int main(int argc, char *argv[])
             if (!updateUserQuery2.exec()) {
                 qCritical() << updateUserQuery2.lastError().text();
             }
+
+            QSqlQuery logPrintQuery;
+            logPrintQuery.prepare("INSERT INTO printLog (durationHours, weight, printer, user, filament, filename, timestamp) "
+                                  "VALUES(:dh, :wt, :pr, :us, :fm, :fn, :tm)");
+            logPrintQuery.bindValue(":dh", parseDuration(loadedPrintInfo["duration"]));
+            logPrintQuery.bindValue(":wt", loadedPrintInfo["weight"].toDouble());
+            logPrintQuery.bindValue(":pr", loadedPrintInfo["printer"]);
+            logPrintQuery.bindValue(":us", currentUserID);
+            logPrintQuery.bindValue(":fm", loadedPrintInfo["filamentType"]);
+            logPrintQuery.bindValue(":fn", loadedPrintInfo["filename"]);
+            logPrintQuery.bindValue(":tm", QString("%1").arg(QDateTime::currentSecsSinceEpoch()));
+            if (!logPrintQuery.exec()) {
+                qCritical() << logPrintQuery.lastError().text();
+            }
+
             pl.startPrint(loadedPrintFilepath);
         }
     });
