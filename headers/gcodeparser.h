@@ -32,9 +32,11 @@ private:
     static inline const std::vector<QString> GCODE_TARGETS = std::vector<QString>({"total filament used [g]", "filament_type", "printer_settings_id", "estimated printing time (normal mode)", "filament_settings_id", "print_settings_id", "filament used [g]"});
     static inline const std::vector<QString> BGCODE_TARGETS = std::vector<QString>({"filament used [g]", "filament_type", "printer_model", "estimated printing time (normal mode)"});
     static QVector<QString> readGCode(QFile file);
+    static QVector<QString> readGCode(QByteArray raw);
     static QVector<QString> readBGCode(QFile file);
     static QMap<QString, QString> parseGCode(QVector<QString> lines);
     static QMap<QString, QString> parseBGCode(QVector<QString> lines);
+    static QMap<QString, QByteArray> extractGCode3mf(const QString &filepath);
 };
 
 #endif // GCODEPARSER_H

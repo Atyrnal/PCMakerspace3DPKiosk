@@ -7,6 +7,7 @@
 #include "headers/gcodeparser.h"
 #include <QFileInfo>
 #include <QDebug>
+#include <zip.h>
 
 #define min(x, y) ((x<y) ? x : y)
 
@@ -21,16 +22,57 @@ QMap<QString, QString> GCodeParser::parseFile(QString filepath) {
         qDebug() << "parsing gcode";
         output = parseGCode(readGCode(QFile(filepath)));
     } else if (fileInfo.fileName().toLower().endsWith(".bgcode")) {
-         qDebug() << "parsing bgcode";
+        qDebug() << "parsing bgcode";
         output = parseBGCode(readBGCode(QFile(filepath)));
     } else if (fileInfo.fileName().toLower().endsWith(".gcode.3mf")) {
-        //handle extraction, then parse gcode
+        qDebug() << "parsing gcode.3mf";
+        QMap<QString, QByteArray> rawPlates = extractGCode3mf(filepath);
+        if (rawPlates.empty()) {
+            qWarning() << "No GCode found within gcode.3mf: " << filepath;
+            return QMap<QString, QString>();
+        }
+        QByteArray plate1 = (rawPlates.contains("plate_1.gcode")) ? rawPlates.value("plate_1.gcode") : rawPlates.first();
+        output = parseGCode(readGCode(plate1));
+        output.insert("plateName", "plate_1");
     } else {
         qWarning() << "Invalid filetype" << filepath;
         return QMap<QString, QString>();
     }
 
     output.insert("filename", QFileInfo(filepath).fileName());
+    return output;
+}
+
+QMap<QString, QByteArray> GCodeParser::extractGCode3mf(const QString &filepath) {
+    int err = 0;
+    zip_t* za = zip_open(filepath.toUtf8().constData(), ZIP_RDONLY, &err);
+    QMap<QString, QByteArray> output = QMap<QString, QByteArray>();
+    if (!za) return output;
+
+    struct zip_stat st;
+    zip_stat_init(&st);
+
+
+    zip_int64_t num = zip_get_num_entries(za, 0);
+    for (zip_int64_t i = 0; i < num; i++) {
+        if (zip_stat_index(za, i, 0, &st) != 0) continue;
+        QString name = QString::fromUtf8(st.name);
+        if (!name.endsWith(".gcode", Qt::CaseInsensitive)) continue;
+
+        zip_file_t* zf = zip_fopen_index(za, i, 0);
+        if (!zf) continue;
+
+        QByteArray out;
+        out.resize(st.size);
+
+        zip_int64_t bytesRead = zip_fread(zf, out.data(), st.size);
+        zip_fclose(zf);
+
+        if (bytesRead != st.size) continue;
+
+        output.insert(name.toLower(), out);
+    }
+    zip_close(za);
     return output;
 }
 
@@ -137,6 +179,38 @@ QVector<QString> GCodeParser::readGCode(QFile f) {
     }
     f.close();
     return QVector<QString>();
+}
+
+QVector<QString> GCodeParser::readGCode(QByteArray raw) {
+    QString plainText;
+    if (raw.size() > LINE_COUNT*60*2) {
+        bool isBambu = false;
+        QByteArray firstFewData = raw.first(10*60);
+        QStringList firstFewLines = QString(firstFewData).split("\n");
+        for (int i = 0; i < firstFewLines.size(); i++) {
+            QString line = firstFewLines[i];
+            if (line.startsWith("; model printing time:")) {
+                isBambu = true;
+                break;
+            }
+            if (line.startsWith("; THUMBNAIL_BLOCK_START")) {
+                isBambu = false;
+                break;
+            }
+        }
+        if (isBambu) {
+            QByteArray firstData = raw.first(LINE_COUNT*20);
+            QByteArray secondData = raw.mid(LINE_COUNT*20 + 20000, LINE_COUNT*40);
+            QByteArray endData = raw.last(LINE_COUNT*60);
+            plainText = QString(firstData) + "\n" + QString(secondData) + "\n" + QString(endData);
+        } else {
+            QByteArray data = raw.last(LINE_COUNT*60);
+            plainText = QString(data);
+        }
+    } else {
+        plainText = QString(raw);
+    }
+    return plainText.split("\n");
 }
 
 QVector<QString> GCodeParser::readBGCode(QFile f) {
