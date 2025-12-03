@@ -15,13 +15,13 @@
 #include <QQmlContext>
 #include <QRegularExpression>
 #include "headers/qtbackend.h"
-#include "headers/prusaLink.h"
-#include "headers/octoprintemulator.h"
+#include "headers/printermanager.h"
 #include <QQuickWindow>
 #include <QFile>
 #include <QFileInfo>
 #include <QDateTime>
 #include <QMap>
+#include <QDir>
 
 //Atyrnal 10/29/2025
 
@@ -49,6 +49,25 @@ bool queryDatabase(const QString &query, const QMap<QString, QVariant> &values) 
         q.bindValue(k, v);
     }
     return q.exec(); //execute the query and return result
+}
+
+QJsonObject readJsonFile(const QString &filepath, quint64 maxSize = 0) {
+    QFile f = QFile(filepath);
+    if (!f.exists()) return {{"_error", "file not found: " + filepath}};
+    if (!f.open(QFile::ReadOnly)) return {{"_error", "unable to open file: " + filepath}};
+    if (maxSize > 0 && f.size() > maxSize) return {{"_error", "file size " + QString::number(f.size()) + " larger than maximum " + QString::number(maxSize)}};
+    QByteArray data = f.read(f.size());
+    f.close();
+    QJsonParseError p;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &p);
+    if (p.error != QJsonParseError::NoError) return {{"_error", "JSON parse error: " + p.errorString()}};
+
+    if (!doc.isObject()) return {{"_error", "file is not JSON Object"}};
+
+    QJsonObject obj = doc.object();
+    obj.insert("_error", "false");
+
+    return obj;
 }
 
 double parseDuration(QString durationString) {
@@ -93,12 +112,11 @@ int main(int argc, char *argv[])
 
     //Helper classes
     QTBackend bk;
-    PrusaLink pl;
-    OctoprintEmulator ope;
+    PrinterManager pm;
 
     //Set the helpers to be accesible from QML
     engine.rootContext()->setContextProperty("backend", &bk);
-    engine.rootContext()->setContextProperty("octoprintemulator", &ope);
+    engine.rootContext()->setContextProperty("printermanager", &pm);
 
     engine.loadFromModule("PCMakerspace3DPKiosk", "Main"); //Load the QML Main.qml declarative ui file
 
@@ -106,7 +124,17 @@ int main(int argc, char *argv[])
     QFile* loadedPrint = nullptr; //Selected print file
     QMap<QString, QString> loadedPrintInfo; //Print file info
     QString loadedPrintFilepath; //Print file path
+    quint32 loadedPrinterId = 0;
     QString currentUserID;
+
+    QJsonObject config = readJsonFile(QDir(QCoreApplication::applicationDirPath()).filePath("debug_configuration.json"), 1000000);
+    if (config.value("_error").toString("should never happen") != "false") {
+        qCritical() << config.value("_error").toString("Error: Parsed JSON object missing error status specifier");
+    } else {
+        pm.loadConfig(config);
+    }
+
+
 
     QObject* root = engine.rootObjects().at(0); //Get the root object (in this case the Window)
     QQuickWindow* window = qobject_cast<QQuickWindow*>(root); //Cast to QWindow
@@ -114,21 +142,23 @@ int main(int argc, char *argv[])
     window->setIcon(icon); //Set window icon
 
     //Connect backend printLoaded signal (runs after parsed print file that was uploaded directly)
-    QObject::connect(&bk, &QTBackend::printLoaded, root, [root, &loadedPrintFilepath, &loadedPrintInfo](const QString &gcodeFilepath, const QMap<QString, QString> &printInfo) {
+    QObject::connect(&bk, &QTBackend::printLoaded, root, [root, &loadedPrintFilepath, &loadedPrintInfo, &loadedPrinterId](const QString &gcodeFilepath, const QMap<QString, QString> &printInfo) {
         loadedPrintFilepath = gcodeFilepath; //set filepath
         loadedPrintInfo = printInfo; //set printinfo
+        loadedPrinterId = 0; //TODO: Have the user select printer from menu
         root->setProperty("appstate", AppState::Prep); //change QML appstate to show print Info
     });
 
-    //Connect octoprint emulator jobLoaded signal (runs after print file recieved from OrcaSlicer)
-    QObject::connect(&ope, &OctoprintEmulator::jobLoaded, root, [root, &loadedPrintFilepath, &loadedPrintInfo](const QString &filepath, const QMap<QString, QString> &printInfo) {
+    //Connect print manager jobLoaded signal (runs after print file recieved from OrcaSlicer)
+    QObject::connect(&pm, &PrinterManager::jobLoaded, root, [root, &loadedPrintFilepath, &loadedPrintInfo, &loadedPrinterId](quint32 id, const QString &filepath, const QMap<QString, QString> &printInfo) {
         loadedPrintFilepath = filepath; //set filepath
         loadedPrintInfo = printInfo; //set printinfo
+        loadedPrinterId = id;
         root->setProperty("appstate", AppState::Prep); //change QML appstate to show print info
     });
 
     //runs when RFID card is scanned successfully
-    QObject::connect(&rfidReader, &LTx2A::cardScanned, root, [root, &bk, &currentUserID, &loadedPrintFilepath, &loadedPrintInfo, &pl]() { //Connect the rfidReader cardScanned event to the lambda
+    QObject::connect(&rfidReader, &LTx2A::cardScanned, root, [root, &bk, &currentUserID, &loadedPrintFilepath, &loadedPrintInfo, &loadedPrinterId, &pm]() { //Connect the rfidReader cardScanned event to the lambda
         if (rfidReader.hasNext()) { //If the cards scanned queue is not empty
             QString cardid = rfidReader.getNext().id.replace("\"", "").trimmed();
             if (root->property("appstate") == AppState::UserScan) {
@@ -176,6 +206,10 @@ int main(int argc, char *argv[])
                 updateUserQuery.prepare("UPDATE users SET trainingCompleted = 1 WHERE id = :id;");
                 updateUserQuery.bindValue(":id", currentUserID);
                 updateUserQuery.exec();
+
+                //Final print check
+                 double printDuration = parseDuration(loadedPrintInfo["duration"]);
+                if (printDuration > 6.0) return bk.showMessage(root, "Prints cannot be longer than 6 hours\nPlease split up your print and try again");
             } else return; //If we're not in one of the scan states, ignore the card scan
 
             //This code executes when a print is verified and authorized
@@ -211,8 +245,9 @@ int main(int argc, char *argv[])
 
             //Send print log to database
             QSqlQuery logPrintQuery;
-            logPrintQuery.prepare("INSERT INTO printLog (durationHours, weight, printer, user, filament, filename, timestamp) "
-                                  "VALUES(:dh, :wt, :pr, :us, :fm, :fn, :tm)");
+            logPrintQuery.prepare("INSERT INTO printLog (printerName, durationHours, weight, printer, user, filament, filename, timestamp) "
+                                  "VALUES(:pn, :dh, :wt, :pr, :us, :fm, :fn, :tm)");
+            logPrintQuery.bindValue(":pn", pm.getPrinter(loadedPrinterId)->getName());
             logPrintQuery.bindValue(":dh", parseDuration(loadedPrintInfo["duration"]));
             logPrintQuery.bindValue(":wt", loadedPrintInfo["weight"].toDouble());
             logPrintQuery.bindValue(":pr", loadedPrintInfo["printer"]);
@@ -225,7 +260,7 @@ int main(int argc, char *argv[])
             }
 
             //Send the print to the printer
-            pl.startPrint(loadedPrintFilepath);
+            pm.startPrint(loadedPrinterId, loadedPrintFilepath);
         }
     });
 
@@ -260,9 +295,21 @@ int main(int argc, char *argv[])
     createUser.bindValue(":um", true);
     createUser.bindValue(":cs", true);
     createUser.bindValue(":tc", true);
-    createUser.bindValue(":al", 0);
+    createUser.bindValue(":al", 2);
     if (!createUser.exec()) {
         qCritical() << "Failed to create user:" << createUser.lastError().text();
+    }
+
+    //Create second user for demo
+    QSqlQuery createUser2;
+    createUser2.prepare("INSERT INTO users (id, firstName, lastName, email, umass, cics, trainingCompleted, authLevel, printsStarted, filamentUsedGrams, printHours) "
+                       "VALUES ('', 'Judge', 'Judy', 'judge@judy.com', :um, :cs, :tc, :al, 0, 0.0, 0.0);");
+    createUser2.bindValue(":um", true);
+    createUser2.bindValue(":cs", true);
+    createUser2.bindValue(":tc", false);
+    createUser2.bindValue(":al", 0);
+    if (!createUser2.exec()) {
+        qCritical() << "Failed to create user:" << createUser2.lastError().text();
     }
 
     return app.exec(); //run the app

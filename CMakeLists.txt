@@ -4,8 +4,28 @@ project(PCMakerspace3DPKiosk VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick SerialPort Svg Sql HttpServer)
-find_package(Qt6 REQUIRED COMPONENTS Core)
+# Optional: force the linker to look in vcpkg
+# link_directories("C:/vcpkg/installed/x64-windows/lib")
+# include_directories("C:/vcpkg/installed/x64-windows/include")
+
+
+
+link_directories("C:/Libs/Curl/lib")
+
+
+set(CURL_INCLUDE_DIR "C:/Libs/Curl/include")
+set(CURL_LIBRARY "C:/Libs/Curl/lib/libcurl.a")
+
+set(ZIP_INCLUDE_DIR "C:/msys64/mingw64/include")
+set(ZIP_LIBRARY "C:/msys64/mingw64/lib/libzip.dll.a")
+
+find_package(Qt6 REQUIRED COMPONENTS Core Quick SerialPort Svg Sql HttpServer Mqtt)
+# find_package(CURL REQUIRED)
+# find_package(ZIP REQUIRED)
+
+include_directories("${CURL_INCLUDE_DIR}")
+include_directories("${ZIP_INCLUDE_DIR}")
+
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -36,10 +56,24 @@ qt_add_qml_module(appPCMakerspace3DPKiosk
         src/qtbackend.cpp
         headers/gcodeparser.h
         src/gcodeparser.cpp
-        headers/prusalink.h
-        src/prusalink.cpp
+
+
         headers/octoprintemulator.h
         src/octoprintemulator.cpp
+        SOURCES src/prusa.cpp
+        SOURCES headers/prusa.h
+        SOURCES headers/printer.h
+        SOURCES src/printer.cpp
+        SOURCES headers/bambulab.h
+        SOURCES src/bambulab.cpp
+        SOURCES headers/ftpsclient.h
+        SOURCES src/ftpsclient.cpp
+        SOURCES headers/printermanager.h
+        SOURCES src/printermanager.cpp
+        SOURCES headers/bambuemulator.h
+        SOURCES src/bambuemulator.cpp
+        QML_FILES ui/RoundButtonC.qml
+        QML_FILES ui/IconButtonC.qml
 )
 
 qt_import_qml_plugins(appPCMakerspace3DPKiosk)
@@ -57,9 +91,11 @@ set_target_properties(appPCMakerspace3DPKiosk PROPERTIES
 )
 
 target_link_libraries(appPCMakerspace3DPKiosk
-    PRIVATE Qt6::Quick Qt6::SerialPort Qt6::Svg Qt6::Sql Qt6::HttpServer
+    PRIVATE Qt6::Quick Qt6::SerialPort Qt6::Svg Qt6::Sql Qt6::HttpServer Qt6::Mqtt libcurl
 )
 target_link_libraries(appPCMakerspace3DPKiosk PRIVATE Qt6::Core)
+target_link_libraries(appPCMakerspace3DPKiosk PRIVATE ${CURL_LIBRARY})
+target_link_libraries(appPCMakerspace3DPKiosk PRIVATE ${ZIP_LIBRARY})
 
 include(GNUInstallDirs)
 install(TARGETS appPCMakerspace3DPKiosk
