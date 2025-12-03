@@ -14,7 +14,7 @@
 #include <QHttpServerResponse>
 #include "headers/gcodeparser.h"
 
-OctoprintEmulator::OctoprintEmulator(QObject* parent) : QObject(parent), server() {
+OctoprintEmulator::OctoprintEmulator(quint16 port, QObject* parent) : QObject(parent), server(), port() {
     /*server.route("/api/printer", []() {
         qDebug() << "/api/printer called!";
         return QJsonObject {
@@ -250,15 +250,15 @@ OctoprintEmulator::OctoprintEmulator(QObject* parent) : QObject(parent), server(
     });*/
 
 
-    quint16 port = 5000; // whatever port you want
+
     QTcpServer* tcp = new QTcpServer(this); // create TCP server
-    if (!tcp->listen(QHostAddress::LocalHost, 5000)) { // start listening
-        qCritical() << "Failed to start TCP server on port 5000";
+    if (!tcp->listen(QHostAddress::LocalHost, port)) { // start listening
+        //qCritical() << "Failed to start TCP server on port";
         return;
     }
 
     if (!server.bind(tcp)) { // bind QHttpServer to TCP server
-        qCritical() << "Failed to bind QHttpServer to TCP server";
+        //qCritical() << "Failed to bind QHttpServer to TCP server";
         return;
     }
 }
