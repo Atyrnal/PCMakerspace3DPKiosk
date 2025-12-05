@@ -10,7 +10,7 @@
 #include <QDebug>
 
 LTx2A::LTx2A(QString portName, qint32 baud) {
-    scanned = QQueue<User>();
+    scanned = QQueue<UserEntry>();
     thread = new QThread; //New thread
     worker = new SerialWorker(portName, baud); //New SerialWorker
 }
@@ -18,7 +18,7 @@ LTx2A::LTx2A(QString portName, qint32 baud) {
 void LTx2A::start() {
     worker->moveToThread(thread); //Send the worker to a different thread so it does not interrupt UI rendering
     QObject::connect(thread, &QThread::started, worker, &SerialWorker::start); //Connect thread start signal to serialworker start slot
-    QObject::connect(worker, &SerialWorker::cardScanned, this, [this](const User &data) {//Connect cardscanned event of serialworker to lambda
+    QObject::connect(worker, &SerialWorker::cardScanned, this, [this](const UserEntry &data) {//Connect cardscanned event of serialworker to lambda
         scanned.enqueue(data); //Add the card id to queue
         emit cardScanned(); //Emit the cardScanned event (called a signal in QT)
     });
@@ -40,7 +40,7 @@ bool LTx2A::hasNext() {
     return !scanned.empty();
 }
 
-User LTx2A::getNext() { //Get the next cardid
+UserEntry LTx2A::getNext() { //Get the next cardid
     return scanned.dequeue();
 }
 
@@ -117,7 +117,7 @@ void SerialWorker::handleMessage(QString code, QStringList data) { //Handle mess
     if (code == "20A") {
         //Card detected once
     } else if (code == "20B") { //Card scanned successfully
-        emit cardScanned(User { //Emit the cardScanned event with a struct User containing the card id
+        emit cardScanned(UserEntry { //Emit the cardScanned event with a struct User containing the card id
             data[0]
         });
     } else if (code == "20C") {

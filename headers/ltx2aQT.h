@@ -15,7 +15,7 @@
 
 using namespace std;
 
-struct User {
+struct UserEntry {
     QString id;
 };
 
@@ -24,7 +24,7 @@ class SerialWorker : public QObject { //Serialworker lives in a different thread
 public:
     explicit SerialWorker(QString portName, qint32 baud);
 signals:
-    void cardScanned(User data);
+    void cardScanned(UserEntry data);
     void errorOccurred(QString error);
 public slots:
     void start();
@@ -44,14 +44,14 @@ class LTx2A : public QObject {
 public:
     LTx2A(QString portName = "auto", qint32 baud = QSerialPort::BaudRate::Baud115200);
     bool hasNext();
-    struct User getNext();
+    struct UserEntry getNext();
     void start();
 public slots:
     void stop();
 signals:
     void cardScanned();
 private:
-    QQueue<struct User> scanned;
+    QQueue<struct UserEntry> scanned;
     QThread* thread;
     SerialWorker* worker;
 };

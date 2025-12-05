@@ -48,10 +48,11 @@ qt_add_qml_module(appPCMakerspace3DPKiosk
         resources/help.svg
         resources/upload_file.svg
         resources/progress_activity.svg
+        resources/JetBrainsMono-Regular.ttf
     SOURCES
         headers/ltx2aQT.h
         src/ltx2aQT.cpp
-        headers/secrets.h
+
         headers/qtbackend.h
         src/qtbackend.cpp
         headers/gcodeparser.h
@@ -74,6 +75,10 @@ qt_add_qml_module(appPCMakerspace3DPKiosk
         SOURCES src/bambuemulator.cpp
         QML_FILES ui/RoundButtonC.qml
         QML_FILES ui/IconButtonC.qml
+        QML_FILES ui/ScrollableLabel.qml
+        SOURCES headers/errors.hpp
+        SOURCES src/errorhandler.cpp
+        SOURCES headers/errorhandler.hpp
 )
 
 qt_import_qml_plugins(appPCMakerspace3DPKiosk)
