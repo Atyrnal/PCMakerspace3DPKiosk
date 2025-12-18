@@ -12,6 +12,7 @@
 #include <QVector>
 #include <QMap>
 #include <QFileInfo>
+#include "headers/errors.hpp"
 
 /*struct PrintData {
     QString printer_settings;
@@ -25,7 +26,7 @@
 class GCodeParser
 {
 public:
-    static QMap<QString, QString> parseFile(QString filepath);
+    static Eo<QMap<QString, QString>> parseFile(QString filepath);
 private:
     static const int LINE_COUNT = 600;
     static const int BLINE_COUNT = 100;

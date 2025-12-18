@@ -9,6 +9,8 @@
 #include <QFileInfo>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QSslCipher>
+#include <QSslKey>
 
 BambuLab::BambuLab(QObject* parent) : Printer(parent), mqtt() {}
 
@@ -70,17 +72,18 @@ void BambuLab::startConnection() {
 
 
     //TLS Encryption, no cerificate validation
-    //QSslSocket* sslSocket = new QSslSocket(mqtt);
     QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
     sslConfig.setPeerVerifyMode(QSslSocket::VerifyNone);
-    sslConfig.setProtocol(QSsl::TlsV1_2OrLater);
-    //sslSocket->setSslConfiguration(sslConfig);
-    //mqtt->setTransport(sslSocket, QMqttClient::SecureSocket);
+    sslConfig.setProtocol(QSsl::AnyProtocol);
+    sslConfig.setLocalCertificate(QSslCertificate());
+    sslConfig.setPrivateKey(QSslKey());
+    sslConfig.setCiphers(QSslConfiguration::supportedCiphers());
+
 
 
 
     QObject::connect(mqtt, &QMqttClient::connected, this, [this]() {
-        qDebug() << "Connected to MQTT broker!";
+        qDebug() << "Printer" << name << "connected to MQTT broker";
         emit this->connectionUpdated(true);
         this->connectionStatus = true;
 
@@ -88,24 +91,28 @@ void BambuLab::startConnection() {
     });
 
     QObject::connect(mqtt, &QMqttClient::disconnected, this, [this]() {
-        qDebug() << "Disconnected from broker.";
+        qDebug() << "Printer" << name << "disconnected from MQTT broker";
+        qDebug() << "State:" << mqtt->state();
+        qDebug() << "Error:" << mqtt->error();
         emit this->connectionUpdated(false);
         this->connectionStatus = false;
 
     });
 
     QObject::connect(mqtt, &QMqttClient::messageReceived, this, [this](const QByteArray &message, const QMqttTopicName &topic) {
+        emit messageRecieved(message, topic);
         if (this->reportFilter.match(topic)) {
             latestReportBytes = message;
             if (!requestTopic.isValid()) {
                 QStringList topicparts = topic.name().split("/");
                 topicparts.pop_back();
                 virtualSN = QString(topicparts.back()); //Copy virtual SN of printer
+                emit setVSN(virtualSN);
                 topicparts.append("request");
                 requestTopic = QMqttTopicName(topicparts.join("/"));
                 mqtt->subscribe(requestFiler);
                 updateState();
-                qDebug() << "LatestReport: "<<latestReport;
+                //qDebug() << "LatestReport: "<<latestReport;
             }
         } else if (this->requestFiler.match(topic)) {
             qDebug() << "Response recieved on topic" << topic.name() << ":" << message;

@@ -21,6 +21,8 @@
 #include <QSqlRecord>
 #include "printermanager.h"
 #include "headers/errors.hpp"
+#include "headers/ltx2aQT.h"
+#include <QCoreApplication>
 
 
 enum AppState {
@@ -50,7 +52,7 @@ struct Staff : public User {
 class QTBackend : public QObject {
     Q_OBJECT
 public:
-    explicit QTBackend(QQmlApplicationEngine* eng, QObject* parent = 0);
+    explicit QTBackend(QCoreApplication* app, QQmlApplicationEngine* eng, QObject* parent = 0);
     void setRoot(QObject* root);
     void loadConfig(QJsonObject cfg);
     void showMessage(QString message, QString acceptText="OK", int redirectState = 0);
@@ -64,6 +66,7 @@ protected:
     //Services
     QSqlDatabase db;
     PrinterManager pm;
+    LTx2A rfidReader;
     //QML stuff
     QQmlApplicationEngine* engine;
     QObject* root;
@@ -92,6 +95,7 @@ signals:
     void setAppmode(quint8 mode);
     void setAppstate(quint8 state);
     void tPrint(const QString &newtext);
+    void closing();
 private slots:
     void jobLoaded(quint32 id, const QString &filepath, const QMap<QString, QString> &printInfo);
 public slots:

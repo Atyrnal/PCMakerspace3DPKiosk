@@ -18,6 +18,8 @@ public:
 signals:
     void jobLoaded(quint32 id, const QString &filepath, QMap<QString, QString> properties);
     void jobInfoLoaded(QVariantMap properties);
+public slots:
+    void closing();
 private:
     quint16 baseOctPort = 21111;
     quint32 nextId = 0;

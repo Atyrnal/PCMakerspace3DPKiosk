@@ -87,6 +87,10 @@ quint32 PrinterManager::addPrinter(Printer* p) {
     return id;
 }
 
+void PrinterManager::closing() {
+    if (bblEmu != nullptr) bblEmu->closing();
+}
+
 void PrinterManager::removePrinter(quint32 id) {
     if (bblEmu != nullptr && printers[id]->getBrand() == "BambuLab") {
         bblEmu->removePrinter(id);

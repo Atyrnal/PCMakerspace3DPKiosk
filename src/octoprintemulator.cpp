@@ -134,7 +134,12 @@ OctoprintEmulator::OctoprintEmulator(quint16 port, QObject* parent) : QObject(pa
         this->fileInfo = new QFileInfo(filePath); //Store file info about saved file
 
         // Parse the gcode properties
-        QMap<QString, QString> properties = GCodeParser::parseFile(fileInfo->absoluteFilePath());
+        auto propertiesEo = GCodeParser::parseFile(fileInfo->absoluteFilePath());
+        if (propertiesEo.isError()) {
+            propertiesEo.handle();
+            return QHttpServerResponse("Failed to parse gcode", QHttpServerResponder::StatusCode::InternalServerError);
+        }
+        auto properties= propertiesEo.get();
         properties.insert("filename", originalFileName); //insert the filename into the properties
         QVariantMap propertiesForJS; //Convert to QVariantMap for use in QML
         for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {

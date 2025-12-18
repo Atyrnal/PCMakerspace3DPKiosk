@@ -106,12 +106,17 @@ public:
     void setHostname(QString hostname);
     void setAccessCode(QString accessCode);
     void setStorageType(const QString &storage);
-
+signals:
+    void messageRecieved(const QByteArray &message, const QMqttTopicName &topic);
+    void setVSN(const QString &vSN);
 protected:
     QString hostname;
     QString accessCode;
     quint16 port;
     QString username;
+    QString modelId = "C12";
+    QString firmwareVer = "01.09.00.00";
+    int devCap = 1;
     bool hasAms = false;
     QList<BambuAms> amsList;
     void requestPrintProject(const BambuPrintOptions &options);
@@ -127,9 +132,10 @@ private:
     QMqttClient* mqtt;
     FtpsClient* ftps;
     QString storageType = "sdcard"; //"sdcard", "internal"
-    QMqttTopicFilter reportFilter {"device/+/report"};
-    QMqttTopicFilter requestFiler {"device/+/request"};
+    static const inline QMqttTopicFilter reportFilter {"device/+/report"};
+    static const inline QMqttTopicFilter requestFiler {"device/+/request"};
     void sendGCode(QString filepath);
+    friend class BambuEmulator;
     friend class PrinterManager;
     //bool testConnection();
 };

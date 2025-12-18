@@ -14,11 +14,16 @@
 #include <QRegularExpression>
 #include <QQmlContext>
 #include "headers/errorhandler.hpp"
+#include "headers/ltx2aQT.h"
+#include <QCoreApplication>
 
 
 
-QTBackend::QTBackend(QQmlApplicationEngine* eng, QObject* parent) : QObject(parent) {
+QTBackend::QTBackend(QCoreApplication* app, QQmlApplicationEngine* eng, QObject* parent) : QObject(parent) {
     ErrorHandler::bk = this;
+
+    rfidReader.start(); //Initialize the RFID reader
+    QObject::connect(app, &QCoreApplication::aboutToQuit, &rfidReader, &LTx2A::stop); //Connect the aboutToQuit app event to the rfidReader's stop function
     db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName("kioskdb.db");
 
@@ -32,6 +37,18 @@ QTBackend::QTBackend(QQmlApplicationEngine* eng, QObject* parent) : QObject(pare
 
     connect(this, &QTBackend::printLoaded, this, &QTBackend::jobLoaded);
     connect(&pm, &PrinterManager::jobLoaded, this, &QTBackend::jobLoaded);
+
+    connect(app, &QCoreApplication::aboutToQuit, &pm, &PrinterManager::closing);
+
+
+    QObject::connect(&rfidReader, &LTx2A::cardScanned, this, [this]() { //Connect the rfidReader cardScanned event to the lambda
+        if (rfidReader.hasNext()) { //If the cards scanned queue is not empty
+            QString cardid = rfidReader.getNext().id.replace("\"", "").trimmed();
+            this->cardScanned(cardid);
+        }
+    });
+
+
 
 }
 
@@ -59,12 +76,16 @@ Eo<QMap<QString, QVariant>> QTBackend::queryDatabase(const QString &query, const
     QList bound = q.boundValues();
     for (auto it = bound.constBegin(); it != bound.constEnd(); ++it) {
         if (!it->isValid()) {
-            return eop("DatabaseQueryBindError", "Failed to bind values", El::Trivial);
+            return eop("DatabaseQueryBindError", "Failed to bind values", El::Warning);
         }
     }
     bool success = q.exec(); //execute the query
-    if (!success || !q.isActive() || !q.isValid() || !q.next()) {
+    if (!success || !q.isActive()) {
         return eop("DatabaseQueryError", q.lastError().text(), El::Warning);
+    }
+
+    if (!q.next() || !q.isValid()) {
+        return eop("DatabaseQueryError", "No valid record", El::Debug);
     }
 
     QMap<QString, QVariant> output;
@@ -190,8 +211,12 @@ AppState QTBackend::appstate() {
 
 Q_INVOKABLE void QTBackend::fileUploaded(const QUrl &fileUrl) {
     QString filepath = fileUrl.toLocalFile(); //get filepath from url
-    QMap<QString, QString> properties = GCodeParser::parseFile(filepath); //parse the gcode
-    qDebug() << properties;
+    Eo<QMap<QString, QString>> propertiesEo = GCodeParser::parseFile(filepath); //parse the gcode
+    qDebug() << propertiesEo;
+    if (propertiesEo.isError()) {
+        return propertiesEo.handle();
+    }
+    auto properties = propertiesEo.get();
     QVariantMap propertiesForJS; //convert properties to QVariantMap for QML
     for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
         propertiesForJS.insert(it.key(), it.value());

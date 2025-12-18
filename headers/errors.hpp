@@ -22,13 +22,16 @@ public:
     const QString type;
     const ErrorLevel level;
     static Error None() { return Error("None", "", ErrorLevel::None); }
-    static Error handle(QString t = "None", QString m= "", ErrorLevel l = ErrorLevel::Trivial);
+    static Error handle(QString t, QString m= "", ErrorLevel l = ErrorLevel::Trivial);
+    static Error softHandle(QString t, QString m= "", ErrorLevel l = ErrorLevel::Trivial);
+    void handle() const;
+    void softHandle() const;
     bool isError() const {
-        return level == ErrorLevel::None || type == "None";
+        return !(level == ErrorLevel::None || type == "None");
     }
     friend QDebug operator<<(QDebug debug, const Error &err) {
         QDebugStateSaver saver(debug);
-        debug.nospace() << err.type << "(\"" << err.errorString << "\", " << err.level <<")";
+        debug.nospace().noquote() << err.type << "(\"" << err.errorString << "\", " << err.level <<")";
         return debug;
     };
 };
@@ -37,7 +40,7 @@ template<typename T>
 class ErrorOption {
 public:
     ErrorOption(Error* er) {
-        errorObj = er;
+        errorObj = new Error(*er);
         isErr = true;
     };
     ErrorOption(T value) {
@@ -45,9 +48,9 @@ public:
         errorObj = nullptr;
         isErr = false;
     }
-    ErrorOption(T value, Error* error) {
+    ErrorOption(T value, Error* er) {
         this->value = value;
-        errorObj = error;
+        errorObj = new Error(*er);
         isErr = true;
     };
     ErrorOption(T value, QString errorType, QString errorMsg, ErrorLevel errorLvl = ErrorLevel :: Debug) {
@@ -58,6 +61,12 @@ public:
     ErrorOption(QString errorType, QString errorMsg, ErrorLevel errorLvl = ErrorLevel :: Trivial) {
         errorObj = new Error(errorType, errorMsg, errorLvl);
         isErr = true;
+    }
+    ~ErrorOption() {
+        if (errorObj != nullptr) {
+            delete errorObj;
+            errorObj = nullptr;
+        }
     }
     T get() const {
         return value;
@@ -86,9 +95,17 @@ public:
     bool isError() const {
         return isErr;
     };
+    void handle() {
+        if (errorObj == nullptr) return;
+        errorObj->handle();
+    }
+    void softHandle() {
+        if (errorObj == nullptr) return;
+        errorObj->softHandle();
+    }
     friend QDebug operator<<(QDebug debug, const ErrorOption &err) {
         QDebugStateSaver saver(debug);
-        debug.nospace() << "ErrorOption(" << ((err.errorObj->isError()) ? Error::None() : *err.errorObj) << ", " << err.value <<")";
+        debug.nospace() << "ErrorOption(" << ((err.errorObj != nullptr && (err.errorObj->isError())) ? *err.errorObj : Error::None()) << ", " << err.value <<")";
         return debug;
     };
 private:

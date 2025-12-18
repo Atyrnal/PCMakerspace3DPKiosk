@@ -8,6 +8,7 @@
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
 #include <QDebug>
+#include "headers/errorhandler.hpp"
 
 LTx2A::LTx2A(QString portName, qint32 baud) {
     scanned = QQueue<UserEntry>();
@@ -23,6 +24,11 @@ void LTx2A::start() {
         emit cardScanned(); //Emit the cardScanned event (called a signal in QT)
     });
     QObject::connect(worker, &SerialWorker::errorOccurred, [](const QString &error) {
+        if (error.toLower() == "matching serial port not found") {
+            return ErrorHandler::handle(Error("SerialDeviceNotFoundError", error, El::Warning));
+        } else {
+            return ErrorHandler::handle(Error("SerialError", error, El::Critical));
+        }
         qWarning() << "Serial Error Occurred: " << error; //Print error
     });
     thread->start(); //Run the thread

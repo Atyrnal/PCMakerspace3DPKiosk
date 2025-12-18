@@ -9,12 +9,13 @@
 #include <QDebug>
 #include <zip.h>
 
+
 #define min(x, y) ((x<y) ? x : y)
 
-QMap<QString, QString> GCodeParser::parseFile(QString filepath) {
+Eo<QMap<QString, QString>> GCodeParser::parseFile(QString filepath) {
+    using eop = Eo<QMap<QString, QString>>;
     if (!QFile::exists(filepath)) {
-        qWarning() << "File does not exist" << filepath;
-        return QMap<QString, QString>();
+        return eop("GcodeFileNotFoundError", "Unable to locate: " + filepath, El::Warning);
     }
     QFileInfo fileInfo = QFileInfo(filepath);
     QMap<QString, QString> output;
@@ -28,19 +29,17 @@ QMap<QString, QString> GCodeParser::parseFile(QString filepath) {
         qDebug() << "parsing gcode.3mf";
         QMap<QString, QByteArray> rawPlates = extractGCode3mf(filepath);
         if (rawPlates.empty()) {
-            qWarning() << "No GCode found within gcode.3mf: " << filepath;
-            return QMap<QString, QString>();
+            return eop("3mfGcodeNotFoundError", "Unable to locate gcode file within: " + filepath, El::Warning);
         }
         QByteArray plate1 = (rawPlates.contains("plate_1.gcode")) ? rawPlates.value("plate_1.gcode") : rawPlates.first();
         output = parseGCode(readGCode(plate1));
         output.insert("plateName", "plate_1");
     } else {
-        qWarning() << "Invalid filetype" << filepath;
-        return QMap<QString, QString>();
+        return eop("GcodeInvalidFiletypeError", "File has invalid filetype: " + filepath, El::Warning);
     }
 
     output.insert("filename", QFileInfo(filepath).fileName());
-    return output;
+    return eop(output);
 }
 
 QMap<QString, QByteArray> GCodeParser::extractGCode3mf(const QString &filepath) {

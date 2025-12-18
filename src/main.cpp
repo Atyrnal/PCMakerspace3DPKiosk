@@ -9,7 +9,6 @@
 #include <QQmlApplicationEngine>
 #include <QSqlError>
 #include <QSqlQuery>
-#include "headers/ltx2aQT.h"
 #include <QQmlContext>
 #include "headers/qtbackend.h"
 #include <QQuickWindow>
@@ -20,33 +19,28 @@
 
 //See ui/Main.qml for ui declarations
 
-LTx2A rfidReader;
-
-QJsonObject readJsonFile(const QString &filepath, quint64 maxSize = 0) {
+Eo<QJsonObject> readJsonFile(const QString &filepath, quint64 maxSize = 0) {
+    using eop = Eo<QJsonObject>;
     QFile f = QFile(filepath);
-    if (!f.exists()) return {{"_error", "file not found: " + filepath}};
-    if (!f.open(QFile::ReadOnly)) return {{"_error", "unable to open file: " + filepath}};
-    if (maxSize > 0 && f.size() > maxSize) return {{"_error", "file size " + QString::number(f.size()) + " larger than maximum " + QString::number(maxSize)}};
+    if (!f.exists()) return eop("JsonFileNotFoundError", "Unable to locate: " + filepath, El::Trivial);
+    if (!f.open(QFile::ReadOnly)) return eop("JsonFileOpenError", "Unable to open file: " + filepath, El::Warning);
+    if (maxSize > 0 && f.size() > maxSize) return eop("JsonFileSizeError", "File size " + QString::number(f.size()) + " larger than maximum " + QString::number(maxSize), El::Trivial);
     QByteArray data = f.read(f.size());
     f.close();
     QJsonParseError p;
     QJsonDocument doc = QJsonDocument::fromJson(data, &p);
-    if (p.error != QJsonParseError::NoError) return {{"_error", "JSON parse error: " + p.errorString()}};
+    if (p.error != QJsonParseError::NoError) return eop("JsonParseError", p.errorString(), El::Warning);
 
-    if (!doc.isObject()) return {{"_error", "file is not JSON Object"}};
+    if (!doc.isObject()) return eop("JsonParseError", "Document is not Json object", El::Warning);
 
     QJsonObject obj = doc.object();
-    obj.insert("_error", "false");
 
-    return obj;
+    return eop(obj);
 }
 
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv); //Create a QT gui app
-
-    rfidReader.start(); //Initialize the RFID reader
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, &rfidReader, &LTx2A::stop); //Connect the aboutToQuit app event to the rfidReader's stop function
 
     QQmlApplicationEngine engine; //Qt engine creation
     QObject::connect( //Exit if object creation fails
@@ -56,18 +50,18 @@ int main(int argc, char *argv[])
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
 
-    QTBackend bk(&engine);
+    QTBackend bk(&app, &engine);
     engine.loadFromModule("PCMakerspace3DPKiosk", "Main"); //Load the QML Main.qml declarative ui file
 
     QObject* root = engine.rootObjects().at(0); //Get the root object (in this case the Window)
     bk.setRoot(root);
 
 
-    QJsonObject config = readJsonFile(QDir(QCoreApplication::applicationDirPath()).filePath("debug_configuration.json"), 1000000);
-    if (config.value("_error").toString("should never happen") != "false") {
-        qCritical() << config.value("_error").toString("Error: Parsed JSON object missing error status specifier");
+    auto config = readJsonFile(QDir(QCoreApplication::applicationDirPath()).filePath("configuration.json"), 1000000);
+    if (config.isError()) {
+        config.softHandle();
     } else {
-        bk.loadConfig(config);
+        bk.loadConfig(config.get());
     }
 
 
@@ -76,16 +70,10 @@ int main(int argc, char *argv[])
     window->setIcon(icon); //Set window icon
 
     //runs when RFID card is scanned successfully
-    QObject::connect(&rfidReader, &LTx2A::cardScanned, &bk, [&bk]() { //Connect the rfidReader cardScanned event to the lambda
-        if (rfidReader.hasNext()) { //If the cards scanned queue is not empty
-            QString cardid = rfidReader.getNext().id.replace("\"", "").trimmed();
-            bk.cardScanned(cardid);
-        }
-    });
 
-    QSqlQuery query2("DROP TABLE users"); //Demo stuff
+    bk.queryDatabase("DROP TABLE users"); //Demo stuff
 
-    QSqlQuery query("CREATE TABLE IF NOT EXISTS users (" //Demo Stuff
+    bk.queryDatabase("CREATE TABLE IF NOT EXISTS users (" //Demo Stuff
                     "id VARCHAR(50) PRIMARY KEY, "
                     "firstName VARCHAR(50), "
                     "lastName VARCHAR(50), "
@@ -97,42 +85,31 @@ int main(int argc, char *argv[])
                     "printsStarted INT, "
                     "filamentUsedGrams DOUBLE, "
                     "printHours DOUBLE)"
-                );
-    if (!query.isActive()) {
-        qCritical() << "Failed to create table:" << query.lastError().text();
-    }
+                     ).handle();
 
-
-    // QSqlQuery updateUserQuery;
-    // updateUserQuery.prepare("UPDATE users SET authLevel = 2 WHERE id = :id;");
-    // updateUserQuery.bindValue(":id", "09936544703440683676");
-    // updateUserQuery.exec();
+    // bk.queryDatabase("UPDATE users SET authLevel = 2 WHERE id = :id;", {{":id", "09936544703440683676"}}).softHandle();
     //Demo Stuff
-    QSqlQuery createUser;
-    createUser.prepare("INSERT INTO users (id, firstName, lastName, email, umass, cics, trainingCompleted, authLevel, printsStarted, filamentUsedGrams, printHours) "
-                         "VALUES ('09936544703440683676', 'Antony', 'Rinaldi', 'ajrinaldi@umass.edu', :um, :cs, :tc, :al, 0, 0.0, 0.0);");
-    createUser.bindValue(":um", true);
-    createUser.bindValue(":cs", true);
-    createUser.bindValue(":tc", true);
-    createUser.bindValue(":al", 2);
-    if (!createUser.exec()) {
-        qCritical() << "Failed to create user:" << createUser.lastError().text();
-    }
+
+    bk.queryDatabase("INSERT INTO users (id, firstName, lastName, email, umass, cics, trainingCompleted, authLevel, printsStarted, filamentUsedGrams, printHours) "
+                     "VALUES ('09936544703440683676', 'Antony', 'Rinaldi', 'ajrinaldi@umass.edu', :um, :cs, :tc, :al, 0, 0.0, 0.0);", {
+                        {":um", true},
+                        {":cs", true},
+                        {":tc", true},
+                        {":al", 2}
+                     }).handle();
 
     //Create second user for demo
-    QSqlQuery createUser2;
-    createUser2.prepare("INSERT INTO users (id, firstName, lastName, email, umass, cics, trainingCompleted, authLevel, printsStarted, filamentUsedGrams, printHours) "
-                       "VALUES ('', 'Judge', 'Judy', 'judge@judy.com', :um, :cs, :tc, :al, 0, 0.0, 0.0);");
-    createUser2.bindValue(":um", true);
-    createUser2.bindValue(":cs", true);
-    createUser2.bindValue(":tc", false);
-    createUser2.bindValue(":al", 0);
-    if (!createUser2.exec()) {
-        qCritical() << "Failed to create user:" << createUser2.lastError().text();
-    }
+    bk.queryDatabase("INSERT INTO users (id, firstName, lastName, email, umass, cics, trainingCompleted, authLevel, printsStarted, filamentUsedGrams, printHours) "
+                       "VALUES ('', 'Judge', 'Judy', 'judge@judy.com', :um, :cs, :tc, :al, 0, 0.0, 0.0);", {
+                      {":um", true},
+                      {":cs", true},
+                      {":tc", false},
+                      {":al", 0}
+                     }).handle();
 
-    auto result = bk.queryDatabase("SELECT firstName FROM users WHERE id = :id LIMIT 1", QMap<QString, QVariant>{{":id", "09936544703440683676"}});
-    qDebug() << result;
+    // auto result = bk.queryDatabase("SELECT firstName, lastName FROM users WHERE id = :id LIMIT 1", {{":id", "09936544703440683676000"}});
+    // qDebug() << result;
+    // result.softHandle();
 
     return app.exec(); //run the app
 }

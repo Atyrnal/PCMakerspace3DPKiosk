@@ -7,6 +7,20 @@ Error Error::handle(QString t, QString m, ErrorLevel l) {
     return _new;
 };
 
+Error Error::softHandle(QString t, QString m, ErrorLevel l) {
+    Error _new = Error(t, m, l);
+    if (_new.isError()) ErrorHandler::softHandle(_new);
+    return _new;
+};
+
+void Error::handle() const {
+    if (this->isError()) ErrorHandler::handle(*this);
+};
+
+void Error::softHandle() const {
+    if (this->isError()) ErrorHandler::softHandle(*this);
+};
+
 void ErrorHandler::softHandle(const Error &err) {
     if (!err.isError()) return;
     printLn(err);
@@ -41,28 +55,28 @@ void ErrorHandler::printLn(ErrorLevel lvl, const QString &content) {
     switch (lvl) {
     default:
     case El::None:
-        lvlindicator = "NONE";
-        qDebug() << genLogLine(lvlindicator, content);
+        lvlindicator = "NONE ";
+        qDebug().noquote() << genLogLine(lvlindicator, content) << "\033[0m";
         break;
     case El::Debug:
         lvlindicator = "DEBUG";
-        qDebug() << genLogLine(lvlindicator, content);
+        qDebug().noquote() << genLogLine(lvlindicator, content) << "\033[0m";
         break;
     case El::Trivial:
-        lvlindicator = "TRIVIAL";
-        qInfo() << genLogLine(lvlindicator, content);
+        lvlindicator = "TRIV ";
+        qInfo().noquote() << genLogLine(lvlindicator, content) << "\033[0m";
         break;
     case El::Warning:
-        lvlindicator = "WARNING";
-        qWarning() << genLogLine(lvlindicator, content);
+        lvlindicator = "WARN ";
+        qWarning().noquote() << "\033[33m" << genLogLine(lvlindicator, content) << "\033[0m";
         break;
     case El::Critical:
-        lvlindicator = "CRITICAL";
-        qCritical() << genLogLine(lvlindicator, content);
+        lvlindicator = "CRIT ";
+        qCritical().noquote() << "\033[31m" << genLogLine(lvlindicator, content) << "\033[0m";
         break;
     case El::Fatal:
         lvlindicator = "FATAL";
-        qFatal() << genLogLine(lvlindicator, content);
+        qFatal().noquote() << "\033[41m" << genLogLine(lvlindicator, content) << "\033[0m";
         break;
     }
 };
