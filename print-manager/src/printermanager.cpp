@@ -107,7 +107,7 @@ quint32 PrinterManager::addPrinter(Printer* p) {
         if (getPrinter(id) != nullptr) propertiesForJS.insert("printerName", getPrinter(id)->getName());
         emit this->jobInfoLoaded(propertiesForJS);
     });
-
+    Log::write("OctoprintEmulatorServer", "Printer " + p->getName() + " listening on 127.0.0.1:" + QString::number(baseOctPort+id));
     return id;
 }
 

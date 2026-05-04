@@ -49,66 +49,63 @@ OctoprintEmulator::OctoprintEmulator(quint16 port, QObject* parent) : QObject(pa
             return QHttpServerResponse("Expected multipart/form-data", QHttpServerResponder::StatusCode::BadRequest);
         }
 
-        QByteArray body = request.body(); //Get request body
+        QByteArray body = request.body();
 
-        // Extract multipart boundary from Content-Type (We are seperating the actual print file from other request information)
-        QString contentType = QString(request.headers().value("Content-Type").toByteArray()); //Get the content-type header as bytes and make a string
-        QString boundary; //Store boundary
-        static QRegularExpression re("boundary=(.+)"); //search for the string "boundary="
-        QRegularExpressionMatch match = re.match(contentType); //And capture whatever follows it
+        // Extract boundary from Content-Type header (this part is safe as a string, it's ASCII)
+        QString contentType = QString(request.headers().value("Content-Type").toByteArray());
+        QByteArray boundary;
+        static QRegularExpression re("boundary=(.+)");
+        QRegularExpressionMatch match = re.match(contentType);
         if (match.hasMatch()) {
-            boundary = "--" + match.captured(1); //save the boundary string
-        } else { //Malformed multipart request
+            boundary = ("--" + match.captured(1).trimmed()).toUtf8();
+        } else {
             return QHttpServerResponse("No boundary found", QHttpServerResponder::StatusCode::BadRequest);
         }
 
-
-        // convert to string for easier processing
-        QString bodyStr = QString::fromUtf8(body);
-
-        //find filename
-        static QRegularExpression fileNameRe(R"delim(filename="([^"]+)")delim"); //Find string filename=
-        QRegularExpressionMatch fileNameMatch = fileNameRe.match(bodyStr); //Match what follows it
-        QString originalFileName = fileNameMatch.hasMatch() ? fileNameMatch.captured(1) : "uploaded.gcode"; //if it exists, that will be our filename, otherwise default to "uploaded.gcode"
-        QString filePath = "uploaded/" + originalFileName; //set the file path to save the streamed file to
-
-        QList<QString> multipartPartsStr = bodyStr.split(boundary); //Split the request body by the boundry (into its seperate parts)
-        //Convert the strings to raw bytes
-        QList<QByteArray> multipartParts;
-        for (auto it = multipartPartsStr.constBegin(); it != multipartPartsStr.constEnd(); ++it) { //iterator since we cant use range loop
-            multipartParts.append(it->toUtf8());
+        // Split body by boundary entirely in QByteArray - never convert to QString
+        QList<QByteArray> parts;
+        int pos = 0;
+        while (true) {
+            int next = body.indexOf(boundary, pos);
+            if (next == -1) break;
+            if (pos != 0) parts.append(body.mid(pos, next - pos));
+            pos = next + boundary.size();
+            if (body.mid(pos, 2) == "--") break; // final boundary
+            if (body.mid(pos, 2) == "\r\n") pos += 2;
+            else if (body.mid(pos, 1) == "\n") pos += 1;
         }
 
-        // Variables to hold file and other fields
         QByteArray fileData;
+        QString originalFileName = "uploaded.gcode";
         bool selectFlag = false;
         bool printFlag = false;
 
-        for (const QByteArray &partRaw : multipartParts) { //Iterate over each multipart
-            if (partRaw.trimmed().isEmpty()) continue; //if part empty skip it
+        for (const QByteArray &part : parts) {
+            // Headers end at the first \r\n\r\n or \n\n - only parse headers as string (they're ASCII)
+            int headerEnd = part.indexOf("\r\n\r\n");
+            int skip = 4;
+            if (headerEnd == -1) { headerEnd = part.indexOf("\n\n"); skip = 2; }
+            if (headerEnd == -1) continue;
 
-            QString part = QString::fromUtf8(partRaw); //Convert part to string
-            // Check if this is the file part
-            if (part.contains("name=\"file\"")) {
-                // Extract file data: after empty line
-                int index = part.indexOf("\r\n\r\n");
-                if (index < 0) index = part.indexOf("\n\n");
-                if (index >= 0) {
-                    fileData = partRaw.mid(index + 4); // skip headers
-                    // remove any trailing boundary markers
-                    int boundaryIndex = fileData.indexOf("\r\n--");
-                    if (boundaryIndex >= 0) fileData.truncate(boundaryIndex);
-                }
-            }
+            QString headers = QString::fromUtf8(part.left(headerEnd)); // safe: headers are ASCII
+            QByteArray partBody = part.mid(headerEnd + skip);
+            // Strip trailing \r\n
+            if (partBody.endsWith("\r\n")) partBody.chop(2);
+            else if (partBody.endsWith("\n")) partBody.chop(1);
 
-            // Check select/print fields
-            if (part.contains("name=\"select\"")) {
-                selectFlag = part.contains("true");
-            }
-            if (part.contains("name=\"print\"")) {
-                printFlag = part.contains("true");
+            if (headers.contains("name=\"file\"")) {
+                // Extract filename from headers (safe as string)
+                static QRegularExpression fileNameRe(R"delim(filename="([^"]+)")delim");
+                QRegularExpressionMatch m = fileNameRe.match(headers);
+                if (m.hasMatch()) originalFileName = m.captured(1);
+                fileData = partBody; // raw bytes, never touched QString
+            } else if (headers.contains("name=\"select\"")) {
+                selectFlag = QString::fromUtf8(partBody).trimmed() == "true";
+            } else if (headers.contains("name=\"print\"")) {
+                printFlag = QString::fromUtf8(partBody).trimmed() == "true";
             }
         }
+        QString filePath = "uploaded/" + originalFileName;
         //make the "uploaded" dir if it doesnt exist
         QDir uploadDir = QDir("uploaded");
         if (!uploadDir.exists()) {
