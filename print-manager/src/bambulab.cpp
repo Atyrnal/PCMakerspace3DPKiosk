@@ -40,7 +40,7 @@ void BambuLab::loadCertificate(Func callback) {
     Log::write("BambuLabPrinter("+name+"@"+hostname+")", "Fetching printer certificate information");
     QSslSocket* socket = new QSslSocket(this);
     socket->setPeerVerifyMode(QSslSocket::VerifyNone);
-    connect(socket, &QSslSocket::encrypted, this, [=](){
+    connect(socket, &QSslSocket::encrypted, this, [=, this](){
         QList<QSslCertificate> chain = socket->peerCertificateChain();
         if (chain.size() >= 2) {
             QSslCertificate cert = chain[0]; // leaf cert, not the CA
@@ -167,7 +167,7 @@ void BambuLab::startPrintGCode(const QString &fileName) {
 void BambuLab::startPrintProject(const QString &fileName, const BambuPrintOptions &opt) {
     if (!connectionStatus) return;
     if (!requestTopic.isValid()) return;
-    QObject::connect(ftps, &FtpsClient::finished, this, [this, &fileName, &opt](bool success, const QString &error) {
+    QObject::connect(ftps, &FtpsClient::finished, this, [this, fileName, opt](bool success, const QString &error) {
         if (success) {
             // BambuPrintOptions opt(QFileInfo(fileName).fileName());
             //opt.setAmsMapping(QList<qint8>{3});//TODO: Make ams mappings dynamic for prints uploaded directly, for slicer prints steal them from the slicer's mqtt request to the emulator
@@ -175,7 +175,7 @@ void BambuLab::startPrintProject(const QString &fileName, const BambuPrintOption
         } else {
             Error::handle("BambuLabFtpsError", error, El::Critical);
         }
-    });
+    }, Qt::SingleShotConnection);
     sendGCode(fileName);
 }
 
@@ -220,6 +220,7 @@ void BambuLab::requestPrintProject(const BambuPrintOptions &options) {
 }
 
 void BambuLab::sendGCode(QString filepath) {
+    Log::write("BambuLabPrinter("+name+"@"+hostname+")", "SendGCode called");
     QFileInfo fileInfo(filepath);
     ftps->uploadFile(filepath, hostname, username, accessCode, "/"+fileInfo.fileName());
 }

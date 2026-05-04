@@ -36,8 +36,12 @@ enum AppState {
     Loading
 };
 
-struct Staff : public User {
-    quint8 authLevel = 1;
+struct LoadedPrint {
+    quint16 printerId;
+    QString filepath;
+    QMap<QString,QString> printInfo;
+    QString userID;
+    bool isPersonalFilament;
 };
 
 class QTBackend : public QObject {
@@ -63,19 +67,17 @@ protected:
     QQmlApplicationEngine* engine;
     QObject* root;
     //App state variables
-    QString loadedPrintFilepath;
-    quint32 loadedPrinterId = 0;
+    LoadedPrint loadedPrint;
     QString currentUserID = "";
     QString currentStaffID = "";
-    User* currentUser = nullptr;
-    Staff* currentStaff = nullptr;
-    QFile* loadedPrint = nullptr; //Selected print file
-    QMap<QString, QString> loadedPrintInfo; //Print file info
+    QVariantMap currentUser;
 private:
     #ifdef Q_OS_WIN
     DWORD findProcessId(const QString &processName);
     void bringWindowToFront(DWORD pid);
     #endif
+
+    void printStartCheck(bool isStaff, bool justTrained=false);
     double parseDuration(const QString &durationString);
     AppState appstate();
 
@@ -94,6 +96,7 @@ public slots:
     Q_INVOKABLE void orcaButtonClicked();
     Q_INVOKABLE void helpButtonClicked();
     Q_INVOKABLE void fileUploaded(const QUrl &fileUrl);
+    Q_INVOKABLE void setLoadedPrintFilamentProvider(bool personal);
 };
 
 #endif // QTBACKEND_H

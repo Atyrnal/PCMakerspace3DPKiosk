@@ -21,6 +21,8 @@
 #include <QStandardPaths>
 #endif
 
+#define PRINTING_CERT_ID "recY34WO6fex1KMxO"
+
 
 QTBackend::QTBackend(QCoreApplication* app, QQmlApplicationEngine* eng, QObject* parent) : QObject(parent) {
     ErrorHandler::bk = this;
@@ -162,12 +164,17 @@ Q_INVOKABLE void QTBackend::fileUploaded(const QUrl &fileUrl) {
     Log::write("QtBackend", "Loaded print info for: " + filepath);
     //emit signals to main loop and QML to update appstate and load print files
     emit printInfoLoaded(propertiesForJS);
-    emit printLoaded(loadedPrinterId, filepath, properties);
+    emit printLoaded(loadedPrint.printerId, filepath, properties);
 }
 
 Q_INVOKABLE void QTBackend::helpButtonClicked() {
 
 }
+
+Q_INVOKABLE void QTBackend::setLoadedPrintFilamentProvider(bool personal) {
+    this->loadedPrint.isPersonalFilament = personal;
+}
+
 
 Q_INVOKABLE void QTBackend::orcaButtonClicked() { //Runs when orcaslicer button pressed
     //Locate orcaslicer exe
@@ -226,13 +233,14 @@ void QTBackend::loadConfig(QJsonObject cfg) {
 
 void QTBackend::showMessage(QString message, QString acceptText, int redirectState) {
     emit messageReq(message, acceptText, redirectState);
-    root->setProperty("appstate", 2);
+    root->setProperty("appstate", AppState::Message);
 }
 
 void QTBackend::jobLoaded(quint32 id, const QString &filepath, const QMap<QString, QString> &printInfo) {
-    loadedPrintFilepath = filepath; //set filepath
-    loadedPrintInfo = printInfo; //set printinfo
-    loadedPrinterId = id;
+    this->loadedPrint = LoadedPrint();
+    loadedPrint.filepath = filepath; //set filepath
+    loadedPrint.printInfo = printInfo; //set printinfo
+    loadedPrint.printerId= id;
     root->setProperty("appstate", AppState::Prep); //change QML appstate to show print info
 }
 
@@ -240,9 +248,30 @@ void QTBackend::cardScanned(const QString &cardid) {
     Log::write("QtBackendSerial", "Card scanned, current state:" + QString::number(appstate()));
     if (appstate() == AppState::UserScan) {
         currentUserID = cardid;
+        loadedPrint.userID = cardid;
         Log::write("QtBackendSerial", "User card scanned: " + cardid);
         root->setProperty("appstate", AppState::Loading);
-        airtable->table("Users")->getRecord(QString("{User Id} = '%1'").arg(currentUserID), [=](Eo<QVariantMap> recordeo){
+        airtable->table("Users")->getRecord(QString("{User Id} = '%1'").arg(currentUserID), [=, this](Eo<QVariantMap> recordeo){
+            if (recordeo.isError()) {
+                if (recordeo.errorLevel() <= El::Trivial) {
+                    recordeo.softHandle();
+                    return showMessage("Your account is not Registered\nPlease Register at the Check-In Kiosk");
+                } else {
+                    return recordeo.handle();
+                }
+            }
+            currentUser = recordeo.get();
+            QVariantMap recordFields = recordeo.get().value("fields").toMap(); //Could need toJsonObject instead?
+            bool isStaff = recordFields.value("Is Staff", false).toBool();
+            printStartCheck(isStaff);
+        });
+    } else if (appstate() == AppState::StaffScan) {
+
+        //Staff scan to confirm a user has completed 3D Printing training
+
+        //Get staff info
+        root->setProperty("appstate", AppState::Loading);
+        airtable->table("Users")->getRecord(QString("{User Id} = '%1'").arg(cardid), [=, this](Eo<QVariantMap> recordeo){
             if (recordeo.isError()) {
                 if (recordeo.errorLevel() <= El::Trivial) {
                     recordeo.softHandle();
@@ -252,57 +281,47 @@ void QTBackend::cardScanned(const QString &cardid) {
                 }
             }
             QVariantMap recordFields = recordeo.get().value("fields").toMap(); //Could need toJsonObject instead?
-            bool isStaff = recordFields.value("Staff", false).toBool();
-            QString cicsAff = recordFields.value("Affiliation to CICS", "").toString();
-            bool isCICS = isStaff || cicsAff == "CICS Student" || cicsAff == "CICS Faculty or Staff";
-            bool training = isStaff || recordFields.value("Certificates", QList<QString>()).toList().contains("recY34WO6fex1KMxO"); //Need to implement some form of join or something idek
+            bool isStaff = recordFields.value("Is Staff", false).toBool();
+            if (!isStaff) return showMessage("This user is not Staff\nPlease ask a staff member for\nour 3D print training and have them\nscan their UCard to continue", "Training Completed", AppState::StaffScan);
+            currentStaffID = cardid;
+            if (!currentUser.contains("id")) return;
+            QVariantMap payload;
+            QVariantList certificates = currentUser.value("fields", QVariantMap()).toMap().value("Certificates", QList<QString>()).toList();
+            certificates.append(PRINTING_CERT_ID);
+            payload.insert("Certificates", certificates);
 
-            double printDuration = parseDuration(loadedPrintInfo["duration"]);
+            airtable->table("Users")->updateRecordById(currentUser.value("id").toString(), payload);
 
-            if (!isCICS) return showMessage("Sorry, but only CICS Students\nMay print at the Physical Computing Makerspace", "I Understand");
-            if (!training) return showMessage("Please ask a staff member for\nour 3D print training and have them\nscan their UCard to continue", "Training Completed", AppState::StaffScan);
-            //qDebug() << printDuration;
-            if (!isStaff && printDuration > 6.0) return showMessage("Prints cannot be longer than 6 hours\nPlease split up your print and try again");
-
-            showMessage("Printing now!");
-            QVariantMap printLogInfo = {
-                {"User ID", currentUserID},
-                {"Printer", pm->getPrinter(loadedPrinterId)->getName()},
-                {"Printer Model", pm->getPrinter(loadedPrinterId)->getModel()},
-                {"Weight", loadedPrintInfo["weight"].left(loadedPrintInfo["weight"].size()-1).toDouble()}, //Remove the g and convert to double
-                {"Duration", printDuration*3600},
-                {"Filament Type", (loadedPrintInfo.contains("filament") && loadedPrintInfo["filament"] != "") ? loadedPrintInfo["filament"] : loadedPrintInfo["filamentType"]}/*,
-                {"Filename", loadedPrintInfo["filename"]}*/
-            };
-            airtable->table("Print Log")->createRecord(printLogInfo);
-            pm->startPrint(loadedPrinterId, loadedPrintFilepath);
+            printStartCheck(false, true);
         });
-    } else if (appstate() == AppState::StaffScan) {
-        //Staff scan to confirm a user has completed 3D Printing training
 
-        //Get staff info
-
-        // auto result = queryDatabase("SELECT authLevel FROM users WHERE id = :id LIMIT 1", {{":id", cardid}});
-        // if (result.isError()) {
-        //     ErrorHandler::softHandle(result);
-        //     return showMessage("This user is not Registered\nPlease ask a staff member for\nour 3D print training and have them\nscan their UCard to continue", "Training Completed", AppState::StaffScan);
-        // }
-        // int authLevel = result.get().value("authLevel").toInt();
-
-        // //Check that the user is staff
-        // if (authLevel < 1) return showMessage("This user is not Staff\nPlease ask a staff member for\nour 3D print training and have them\nscan their UCard to continue", "Training Completed", AppState::StaffScan);
-
-        //Update user so save their 3d printing status
-
-        // auto result2 = queryDatabase("UPDATE users SET trainingCompleted = 1 WHERE id = :id; LIMIT 1", {{":id", currentUserID}});
-        // if (result2.isError()) return ErrorHandler::handle(result2);
-
-        //Final print check
-        double printDuration = parseDuration(loadedPrintInfo["duration"]);
-        if (printDuration > 6.0) return showMessage("Prints cannot be longer than 6 hours\nPlease split up your print and try again");
-        showMessage("Printing now!");
-        pm->startPrint(loadedPrinterId, loadedPrintFilepath);
-    } else return; //If we're not in one of the scan states, ignore the card scan
+    } else if (appstate() == AppState::Message) {
+        //Staff override scan
+        QVariantMap propertiesForJS; //convert properties to QVariantMap for QML
+        for (auto it = loadedPrint.printInfo.constBegin(); it != loadedPrint.printInfo.constEnd(); ++it) {
+            propertiesForJS.insert(it.key(), it.value());
+        }
+        propertiesForJS.insert("personalFilament", loadedPrint.isPersonalFilament);
+        emit printInfoLoaded(propertiesForJS);
+        root->setProperty("appstate", AppState::Prep);
+    } else if (appstate() == AppState::Prep && loadedPrint.userID != "") {
+        root->setProperty("appstate", AppState::Loading);
+        airtable->table("Users")->getRecord(QString("{User Id} = '%1'").arg(cardid), [=, this](Eo<QVariantMap> recordeo){
+            if (recordeo.isError()) {
+                if (recordeo.errorLevel() <= El::Trivial) {
+                    recordeo.softHandle();
+                    return;
+                } else {
+                    return recordeo.handle();
+                }
+            }
+            QVariantMap recordFields = recordeo.get().value("fields").toMap(); //Could need toJsonObject instead?
+            bool isStaff = recordFields.value("Is Staff", false).toBool();
+            if (!isStaff) return;
+            currentStaffID = cardid;
+            printStartCheck(true);
+        });
+    } else return;    //If we're not in one of the scan states, ignore the card scan
 
     //This code executes when a print is verified and authorized
      //show printing message
@@ -353,6 +372,40 @@ void QTBackend::cardScanned(const QString &cardid) {
 
     //Send the print to the printer
 
+}
+
+void QTBackend::printStartCheck(bool staffApproved, bool justTrained) {
+    double printDuration = parseDuration(loadedPrint.printInfo["duration"]);
+    if (!staffApproved) {
+        QVariantMap recordFields = currentUser.value("fields").toMap();
+        QString cicsAff = recordFields.value("Affiliation to CICS", "").toString();
+        bool isCICS = cicsAff == "CICS Student" || cicsAff == "CICS Faculty or Staff";
+        bool training = justTrained || recordFields.value("Certificates", QList<QString>()).toList().contains(PRINTING_CERT_ID); //Need to implement some form of join or something idek
+
+
+
+        if (!isCICS && !loadedPrint.isPersonalFilament) return showMessage("Sorry, but only CICS Community Members\nmay print using Makerspace filament.", "I Understand");
+        if (!training) return showMessage("Please ask a staff member to\napprove your print or take \nour 3D Print training", "Training Completed", AppState::StaffScan);
+        if (!staffApproved && printDuration > 6.0 && !loadedPrint.isPersonalFilament) return showMessage("Prints cannot be longer than 6 hours\nwith Makerspace Filament");
+        if (!staffApproved && printDuration > 10.0 && loadedPrint.isPersonalFilament && isCICS) return showMessage("Prints cannot be longer than 10 hours\n");
+        if (!staffApproved && printDuration > 6.0 && loadedPrint.isPersonalFilament && !isCICS) return showMessage("Prints cannot be longer than 6 hours\n");
+    }
+    showMessage("Printing now!");
+    if (pm->getPrinter(loadedPrint.printerId) == nullptr) return Error("QTBackendError", "Loaded Printer not found", El::Critical).handle();
+    QVariantMap printLogInfo = {
+        {"User ID", currentUserID},
+        {"Printer", pm->getPrinter(loadedPrint.printerId)->getName()},
+        {"Printer Model", pm->getPrinter(loadedPrint.printerId)->getBrand() + " " + pm->getPrinter(loadedPrint.printerId)->getModel()},
+        {"Weight", loadedPrint.printInfo["weight"].left(loadedPrint.printInfo["weight"].size()-1).toDouble()}, //Remove the g and convert to double
+        {"Duration", printDuration*3600},
+        {"Filament Type", (loadedPrint.printInfo.contains("filament") && loadedPrint.printInfo["filament"] != "") ? loadedPrint.printInfo["filament"] : loadedPrint.printInfo["filamentType"]},
+        {"Filename", loadedPrint.printInfo["filename"]},
+        {"Personal Filament", loadedPrint.isPersonalFilament},
+    };
+    if (staffApproved) printLogInfo.insert("Staff Approver ID", currentStaffID);
+    airtable->table("Print Log")->createRecord(printLogInfo);
+    Log::write("QTBackend", "Starting Print");
+    pm->startPrint(loadedPrint.printerId, loadedPrint.filepath);
 }
 
 // Error QTBackend::queryDatabase(const QString &query) {
