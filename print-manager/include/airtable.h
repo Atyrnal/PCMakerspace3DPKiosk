@@ -42,6 +42,8 @@ public:
     template<typename Func>
     void getRecords(QString filterFormula, Func callback); //QList<QVariantMap>
     void createRecord(QVariantMap recordFields);
+    void updateRecord(QString filterFormula, QVariantMap recordFields);
+    void updateRecordById(QString recordId, QVariantMap recordFields);
     // template<typename Func>
     // void createRecord(QVariantMap recordFields, Func callback);
     // void createRecords(QArray<QVariantMap> records);
@@ -57,6 +59,7 @@ private:
     QNetworkAccessManager netman;
     [[nodiscard]] QNetworkReply* getRaw(const QString &urlStr);
     [[nodiscard]] QNetworkReply* postRaw(const QString &urlStr, const QByteArray &data);
+    [[nodiscard]] QNetworkReply* patchRaw(const QString &urlStr, const QByteArray &data);
 };
 
 

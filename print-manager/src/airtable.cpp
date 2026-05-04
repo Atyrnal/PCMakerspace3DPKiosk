@@ -48,6 +48,7 @@ AirtableTable::AirtableTable(QString dbHostname, QString dbKey, QString dbBase, 
     this->dbBase = dbBase;
     this->dbTable = dbTable;
     this->dbKey = dbKey;
+    netman.connectToHostEncrypted(QUrl(dbHostname).host());
 }
 
 
@@ -57,6 +58,27 @@ void AirtableTable::createRecord(QVariantMap recordFields) {
     QNetworkReply* reply = postRaw(QString("%1/v0/%2/%3").arg(dbHostname, dbBase, dbTable), QJsonDocument(payload).toJson());
     QObject::connect(reply, &QNetworkReply::finished, reply, [=]() {
         if (reply->error() != QNetworkReply::NoError) Error("AirtableNetworkError", reply->errorString(), El::Warning).softHandle();
+        reply->deleteLater();
+    });
+
+}
+
+void AirtableTable::updateRecord(QString filterFormula, QVariantMap recordFields) {
+    this->getRecord(filterFormula, [this, recordFields](Eo<QVariantMap> recordeo){
+        if (recordeo.isError()) return recordeo.softHandle();
+        auto record = recordeo.get();
+        if (!record.contains("id")) return;
+        this->updateRecordById(record.value("id").toString(), recordFields);
+    });
+}
+
+void AirtableTable::updateRecordById(QString recordId, QVariantMap recordFields) {
+    QJsonObject payload;
+    payload.insert("fields", QJsonObject::fromVariantMap(recordFields));
+    QNetworkReply* reply = patchRaw(QString("%1/v0/%2/%3/%4").arg(dbHostname, dbBase, dbTable, recordId), QJsonDocument(payload).toJson());
+    QObject::connect(reply, &QNetworkReply::finished, reply, [=]() {
+        if (reply->error() != QNetworkReply::NoError) Error("AirtableNetworkError", reply->errorString(), El::Warning).softHandle();
+        reply->deleteLater();
     });
 }
 
@@ -74,6 +96,15 @@ QNetworkReply* AirtableTable::postRaw(const QString &urlStr, const QByteArray &d
     postReq.setRawHeader("Authorization", QString("Bearer %1").arg(dbKey).toUtf8());
     postReq.setHeader (QNetworkRequest::ContentTypeHeader, "application/json");
     QNetworkReply* reply = netman.post(postReq, data);
+    return reply;
+}
+
+QNetworkReply* AirtableTable::patchRaw(const QString &urlStr, const QByteArray &data) {
+    QUrl dbUrl = QUrl(urlStr);
+    QNetworkRequest patchReq(dbUrl);
+    patchReq.setRawHeader("Authorization", QString("Bearer %1").arg(dbKey).toUtf8());
+    patchReq.setHeader (QNetworkRequest::ContentTypeHeader, "application/json");
+    QNetworkReply* reply = netman.sendCustomRequest(patchReq, "PATCH", data);
     return reply;
 }
 
