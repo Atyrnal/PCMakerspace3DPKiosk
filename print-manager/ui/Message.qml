@@ -25,7 +25,7 @@ Item {
         target: backend
         function onMessageReq(msg, btnText, newState) {
             messageText.text = msg
-            acceptMessageButton.text = btnText
+            acceptMessageButton.label_text = btnText
             messageFrame.nextState = newState
         }
     }
@@ -40,11 +40,12 @@ Item {
             messageText.text = "Unknown Error"
             messageFrame.nextState = Main.AppState.Idle
         }
-        width: 160
+        width: 200
         height: 40
         radius: 5
         color: Theme.primary
         pressed_color : Theme.primaryActive
+        text_color: "#fff"
         border_width: 0
         label_text: "OK"
 
@@ -59,13 +60,14 @@ Item {
         anchors.bottomMargin: 10
         onClicked: {
             rootWindow.appstate = Main.AppState.Idle
-            message.text = "Unknown Error"
+            messageText.text = "Unknown Error"
         }
         width: 160
         height: 40
         radius: 5
         color: Theme.primary
         pressed_color : Theme.primaryActive
+        text_color: "#fff"
         border_width: 0
         label_text: "Cancel"
     }

@@ -159,6 +159,7 @@ Item { //idleFrame container
             width: 200
             height: 50
             radius: 5
+            text_color: Theme.text
             color: Theme.primary
             pressed_color : Theme.primaryActive
             border_width: 0
@@ -178,6 +179,7 @@ Item { //idleFrame container
             width: 200
             height: 50
             radius: 5
+            text_color: Theme.text
             border_width: 0
             color: Theme.primary
             pressed_color : Theme.primaryActive
@@ -196,6 +198,7 @@ Item { //idleFrame container
         //     border_width: 0
         //     color: Theme.primary
         //     pressed_color : Theme.primaryActive
+        //     text_color: Theme.text
         //     label_text : "Upload GCode"
         //     image_source: "../resources/upload_file.svg"
         //     visible: true //Dont implement this until we have printer selection and settings (ams mapping, flow cali, vibro cali, etc.) down to a science.

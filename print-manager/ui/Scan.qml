@@ -63,7 +63,7 @@ Item { //scanFrame container
 
     Text {
         id: tapText
-        text: (isStaff) ? "Tap your ID or UCard" : "Tap Staff Card"
+        text: (isStaff) ? "Tap Staff Card" : "Tap your ID or UCard"
         font.pointSize: 40
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 20

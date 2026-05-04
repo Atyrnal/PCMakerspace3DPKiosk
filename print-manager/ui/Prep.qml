@@ -19,7 +19,7 @@ Item {
             verticalAlignment: Text.AlignVCenter
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: 160
+            anchors.topMargin: 120
             font.pointSize: 36
             font.bold: true
             color: Theme.text
@@ -35,6 +35,7 @@ Item {
             border.width: 2
             border.color: Theme.text
             radius: 2
+            id: printInfoRect
             Text {
                 id: printInfoText
                 text: "No print information found"
@@ -47,6 +48,52 @@ Item {
                 font.pointSize: 18
             }
         }
+        Item {
+            width: printInfoRect.width
+            height: 200
+            anchors.top:printInfoRect.bottom
+            anchors.topMargin: 10
+            anchors.horizontalCenter: parent.horizontalCenter
+            Text {
+                text: "Filament Provider"
+                width: parent.width
+                horizontalAlignment : Text.AlignHCenter
+                font.pointSize: 16
+                color: Theme.text
+                font.bold:true
+                id: fpText
+            }
+
+            Item {
+                anchors.top: fpText.bottom
+                anchors.topMargin: 2
+                width:childrenRect.width
+                height:childrenRect.height
+                RowLayout {
+                    RadioButton {
+                        checked:true
+                        text: "Makerspace Filament"
+                        id: msfButton
+                        onClicked: {
+                            backend.setLoadedPrintFilamentProvider(psfButton.checked)
+                        }
+                    }
+                    RadioButton {
+                        checked:false
+                        text: "Personal Filament"
+                        id: psfButton
+                        onClicked: {
+                            backend.setLoadedPrintFilamentProvider(psfButton.checked)
+                        }
+                    }
+                }
+
+                ButtonGroup {
+                    id: filamentProvider
+                    buttons: [msfButton, psfButton]
+                }
+            }
+        }
     }
 
     Connections {
@@ -56,6 +103,14 @@ Item {
             console.log(printInfo)
             let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${(printInfo.hasOwnProperty("filament")) ? printInfo.filament : printInfo.filamentType}\nWeight: ${(printInfo.weight.trim().endsWith("g")) ? printInfo.weight : printInfo.weight + "g"}\nDuration: ${printInfo.duration}`;
             if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
+            if (printInfo.hasOwnProperty("personalFilament")) {
+                msfButton.checked = !printInfo.personalFilament
+                psfButton.checked = printInfo.personalFilament
+            } else {
+                msfButton.checked = true
+                psfButton.checked = false
+            }
+
             printInfoText.text = op
         }
     }
@@ -68,6 +123,8 @@ Item {
             let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${(printInfo.hasOwnProperty("filament")) ? printInfo.filament : printInfo.filamentType}\nWeight: ${(printInfo.weight.trim().endsWith("g")) ? printInfo.weight : printInfo.weight + "g"}\nDuration: ${printInfo.duration}`;
             if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
             printInfoText.text = op
+            msfButton.checked = true
+            psfButton.checked = false
 
             rootWindow.flags |= Qt.WindowStaysOnTopHint
             rootWindow.show()
@@ -105,6 +162,7 @@ Item {
         onClicked: {
             rootWindow.appstate = Main.AppState.UserScan
             printInfoText.text = "No print information found"
+            backend.setLoadedPrintFilamentProvider(psfButton.checked)
         }
         width: 160
         height: 40
