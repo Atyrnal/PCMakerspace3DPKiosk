@@ -251,10 +251,9 @@ QVector<QString> GCodeParser::readGCode(QByteArray raw) {
             }
         }
         if (isBambu) {
-            QByteArray firstData = raw.first(LINE_COUNT*40);
-            QByteArray secondData = raw.mid(LINE_COUNT*40 + 8000, LINE_COUNT*50);
+            QByteArray firstData = raw.first(LINE_COUNT*100);
             QByteArray endData = raw.last(LINE_COUNT*60);
-            plainText = QString(firstData) + "\n" + QString(secondData) + "\n" + QString(endData);
+            plainText = QString(firstData) + "\n" + QString(endData);
         } else {
             QByteArray data = raw.last(LINE_COUNT*60);
             plainText = QString(data);
