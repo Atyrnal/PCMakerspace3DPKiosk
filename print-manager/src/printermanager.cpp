@@ -85,6 +85,7 @@ quint32 PrinterManager::addPrinter(Printer* p) {
                     for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
                         propertiesForJS.insert(it.key(), it.value());
                     }
+                    if (getPrinter(id) != nullptr) propertiesForJS.insert("printerName", getPrinter(id)->getName());
                     emit this->jobInfoLoaded(propertiesForJS);
                 });
             }
@@ -103,6 +104,7 @@ quint32 PrinterManager::addPrinter(Printer* p) {
         for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
             propertiesForJS.insert(it.key(), it.value());
         }
+        if (getPrinter(id) != nullptr) propertiesForJS.insert("printerName", getPrinter(id)->getName());
         emit this->jobInfoLoaded(propertiesForJS);
     });
 

@@ -53,7 +53,7 @@ Printer::JobStatus Prusa::getJobStatus() {
 }*/
 
 void Prusa::sendGCode(QString filepath) {
-    Log::write("PrusaPrinter["+name+"@"+hostname+"]", "Attempting to start print");
+    Log::write("PrusaPrinter("+name+"@"+hostname+")", "Attempting to start print " + filepath);
     //Read gcode file
     QFileInfo fileInfo(filepath);
     QFile file = QFile(filepath);
@@ -77,7 +77,7 @@ void Prusa::sendGCode(QString filepath) {
     QNetworkReply *uploadReply = manager.put(uploadReq, fileData);
 
     //When uploadreply recieved
-    QObject::connect(uploadReply, &QNetworkReply::finished, uploadReply, [=]() {
+    QObject::connect(uploadReply, &QNetworkReply::finished, uploadReply, [=, this]() {
         //Log if the upload succeeded or failed
         if (uploadReply->error() != QNetworkReply::NoError) {
             Error::handle("PrusaPrinterUploadError", uploadReply->errorString());
@@ -85,7 +85,7 @@ void Prusa::sendGCode(QString filepath) {
             return;
         }
         //QByteArray resp = uploadReply->readAll();
-        Log::write("PrusaPrinter["+name+"@"+hostname+"]", "Print upload succeeded");
+        Log::write("PrusaPrinter("+name+"@"+hostname+")", "Print upload succeeded");
         uploadReply->deleteLater();
     });
 }

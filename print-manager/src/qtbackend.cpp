@@ -161,6 +161,7 @@ Q_INVOKABLE void QTBackend::fileUploaded(const QUrl &fileUrl) {
     for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
         propertiesForJS.insert(it.key(), it.value());
     }
+    if (pm->getPrinter(loadedPrint.printerId) != nullptr) propertiesForJS.insert("printerName", pm->getPrinter(loadedPrint.printerId)->getName());
     Log::write("QtBackend", "Loaded print info for: " + filepath);
     //emit signals to main loop and QML to update appstate and load print files
     emit printInfoLoaded(propertiesForJS);
@@ -302,6 +303,7 @@ void QTBackend::cardScanned(const QString &cardid) {
             propertiesForJS.insert(it.key(), it.value());
         }
         propertiesForJS.insert("personalFilament", loadedPrint.isPersonalFilament);
+        if (pm->getPrinter(loadedPrint.printerId) != nullptr) propertiesForJS.insert("printerName", pm->getPrinter(loadedPrint.printerId)->getName());
         emit printInfoLoaded(propertiesForJS);
         root->setProperty("appstate", AppState::Prep);
     } else if (appstate() == AppState::Prep && loadedPrint.userID != "") {

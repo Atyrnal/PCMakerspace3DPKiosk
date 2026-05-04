@@ -52,7 +52,7 @@ Item {
             width: printInfoRect.width
             height: 200
             anchors.top:printInfoRect.bottom
-            anchors.topMargin: 10
+            anchors.topMargin: 12
             anchors.horizontalCenter: parent.horizontalCenter
             Text {
                 text: "Filament Provider"
@@ -66,7 +66,8 @@ Item {
 
             Item {
                 anchors.top: fpText.bottom
-                anchors.topMargin: 2
+                anchors.topMargin: 0
+                anchors.horizontalCenter: parent.horizontalCenter
                 width:childrenRect.width
                 height:childrenRect.height
                 RowLayout {
@@ -102,6 +103,7 @@ Item {
             console.log("Print has been loaded!")
             console.log(printInfo)
             let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${(printInfo.hasOwnProperty("filament")) ? printInfo.filament : printInfo.filamentType}\nWeight: ${(printInfo.weight.trim().endsWith("g")) ? printInfo.weight : printInfo.weight + "g"}\nDuration: ${printInfo.duration}`;
+            if (printInfo.hasOwnProperty("printerName")) op += `\nPrinter Name: ${printInfo.printerName}`
             if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
             if (printInfo.hasOwnProperty("personalFilament")) {
                 msfButton.checked = !printInfo.personalFilament
@@ -121,6 +123,7 @@ Item {
             console.log("Job has been loaded!")
             console.log(printInfo)
             let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${(printInfo.hasOwnProperty("filament")) ? printInfo.filament : printInfo.filamentType}\nWeight: ${(printInfo.weight.trim().endsWith("g")) ? printInfo.weight : printInfo.weight + "g"}\nDuration: ${printInfo.duration}`;
+            if (printInfo.hasOwnProperty("printerName")) op += `\nPrinter Name: ${printInfo.printerName}`
             if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
             printInfoText.text = op
             msfButton.checked = true
