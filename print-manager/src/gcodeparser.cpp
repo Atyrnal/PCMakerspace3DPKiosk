@@ -208,12 +208,10 @@ QVector<QString> GCodeParser::readGCode(QFile f) {
             }
             if (isBambu) {
                 f.seek(0);
-                QByteArray firstData = f.read(LINE_COUNT * 40);
-                f.seek(LINE_COUNT*40 + 8000);
-                QByteArray secondData = f.read(LINE_COUNT * 40);
+                QByteArray firstData = f.read(LINE_COUNT * 100);
                 f.seek(f.size() - LINE_COUNT*60); //End of file
                 QByteArray endData = f.read(LINE_COUNT * 60);
-                plainText = QString(firstData) + "\n" +QString(secondData)+ "\n" + QString(endData);
+                plainText = QString(firstData) + "\n" + QString(endData);
             } else {
                 f.seek(f.size() - LINE_COUNT*60);
                 QByteArray data = f.read(LINE_COUNT * 60);
