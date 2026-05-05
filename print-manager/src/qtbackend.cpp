@@ -264,6 +264,7 @@ void QTBackend::cardScanned(const QString &cardid) {
             currentUser = recordeo.get();
             QVariantMap recordFields = recordeo.get().value("fields").toMap(); //Could need toJsonObject instead?
             bool isStaff = recordFields.value("Is Staff", false).toBool();
+            if (isStaff) currentStaffID = cardid;
             printStartCheck(isStaff);
         });
     } else if (appstate() == AppState::StaffScan) {
