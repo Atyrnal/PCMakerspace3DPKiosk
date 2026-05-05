@@ -10,7 +10,7 @@ void BambuLab::testConnection() {
     QTcpSocket* tcpSocket = new QTcpSocket(this);
 
     tcpSocket->connectToHost(ip, bindingPortTCP);
-    connect(tcpSocket, &QTcpSocket::connected, this, [=]() {
+    connect(tcpSocket, &QTcpSocket::connected, this, [=, this]() {
         QJsonObject login;
         login["command"] = "detect";
         login["sequence_id"] = "20000";
@@ -33,7 +33,7 @@ void BambuLab::testConnection() {
         tcpSocket->write(packet);
         tcpSocket->flush();
 
-        connect(tcpSocket, &QIODevice::readyRead, this, [=]() {
+        connect(tcpSocket, &QIODevice::readyRead, this, [=, this]() {
             QByteArray response = tcpSocket->readAll();
             if (response.size() < 6) {
                 Error::handle("BambuLabFetchError", "Response too short", El::Warning);

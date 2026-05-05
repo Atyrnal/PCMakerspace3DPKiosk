@@ -20,7 +20,7 @@ void Prusa::testConnection() {
     QNetworkRequest infoReq(infoUrl);
     infoReq.setRawHeader("X-Api-Key", password.toUtf8());
     QNetworkReply* infoReply = netman.get(infoReq);
-    connect(infoReply, &QNetworkReply::finished, infoReply, [=](){
+    connect(infoReply, &QNetworkReply::finished, infoReply, [=, this](){
         enum QNetworkReply::NetworkError err = infoReply->error();
         if (err != QNetworkReply::NoError) {
             Error::softHandle("PrusaPrinterConnectionError", infoReply->errorString(), El::Debug);

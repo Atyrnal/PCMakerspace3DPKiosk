@@ -81,7 +81,7 @@ void FtpsWorker::doUpload(const QString &localFile, const QString &host,
     CURLcode res = curl_easy_perform(m_curl);
 
     if (res != CURLE_OK) {
-        emit finished(false, QString(curl_easy_strerror(res)));
+        emit finished(false, QString(curl_easy_strerror(res)) + " url: " +url);
     } else {
         emit finished(true, "");
     }
