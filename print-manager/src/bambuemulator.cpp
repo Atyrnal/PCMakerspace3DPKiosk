@@ -20,7 +20,7 @@ void BambuEmulator::startMosquitto() {
     mqtt = new QMqttClient();
 
     #ifdef Q_OS_WIN
-    QString mosquitoPath = "C:/Program Files/mosquitto/mosquitto.exe";
+    QString mosquitoPath = "C:/Program Files/Mosquitto/mosquitto.exe";
     #else
     QString mosquitoPath = "/usr/bin/mosquitto";
     #endif
