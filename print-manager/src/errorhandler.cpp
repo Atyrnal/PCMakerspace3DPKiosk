@@ -21,6 +21,22 @@ void Error::softHandle() const {
     if (this->isError()) ErrorHandler::softHandle(*this);
 };
 
+void ErrorHandler::initLogFile(const QString &path) {
+    logFile = new QFile(path);
+    if (logFile->open(QIODevice::Append | QIODevice::Text)) {
+        logStream = new QTextStream(logFile);
+    } else {
+        delete logFile;
+        logFile = nullptr;
+    }
+}
+
+void ErrorHandler::writeToFile(const QString &line) {
+    if (logStream == nullptr) return;
+    *logStream << line << "\n";
+    logStream->flush();
+}
+
 void ErrorHandler::softHandle(const Error &err) {
     if (!err.isError()) return;
     printLn(err);
@@ -57,7 +73,9 @@ void ErrorHandler::handle(const Error &err) {
 }
 
 void ErrorHandler::log(const class Log &log) {
-    qDebug().noquote().nospace() << genLogLineLog(log.type, log.message) << "\033[0m";
+    QString line = genLogLineLog(log.type, log.message);
+    writeToFile(line);
+    qDebug().noquote().nospace() << line << "\033[0m";
 }
 
 
@@ -71,33 +89,46 @@ QString ErrorHandler::genLogLineLog(const QString &type, const QString &content)
 
 void ErrorHandler::printLn(ErrorLevel lvl, const QString &content) {
     QString lvlindicator;
+    QString line;
     switch (lvl) {
     default:
     case El::None:
         lvlindicator = "NONE ";
-        qDebug().noquote().nospace() << genLogLine(lvlindicator, content) << "\033[0m";
+        line = genLogLine(lvlindicator, content);
+        writeToFile(line);
+        qDebug().noquote().nospace() << line  << "\033[0m";
         break;
     case El::Log:
         break;
     case El::Debug:
         lvlindicator = "DEBUG";
-        qDebug().noquote().nospace() << genLogLine(lvlindicator, content) << "\033[0m";
+        line = genLogLine(lvlindicator, content);
+        writeToFile(line);
+        qDebug().noquote().nospace() << line << "\033[0m";
         break;
     case El::Trivial:
         lvlindicator = "TRIV ";
-        qInfo().noquote().nospace() << genLogLine(lvlindicator, content) << "\033[0m";
+        line = genLogLine(lvlindicator, content);
+        writeToFile(line);
+        qInfo().noquote().nospace() << line << "\033[0m";
         break;
     case El::Warning:
         lvlindicator = "WARN ";
-        qWarning().noquote().nospace() << "\033[33m" << genLogLine(lvlindicator, content) << "\033[0m";
+        line = genLogLine(lvlindicator, content);
+        writeToFile(line);
+        qWarning().noquote().nospace() << "\033[33m" << line << "\033[0m";
         break;
     case El::Critical:
         lvlindicator = "CRIT ";
-        qCritical().noquote().nospace() << "\033[31m" << genLogLine(lvlindicator, content) << "\033[0m";
+        line = genLogLine(lvlindicator, content);
+        writeToFile(line);
+        qCritical().noquote().nospace() << "\033[31m" << line << "\033[0m";
         break;
     case El::Fatal:
         lvlindicator = "FATAL";
-        qFatal().noquote().nospace() << "\033[41m" << genLogLine(lvlindicator, content) << "\033[0m";
+        line = genLogLine(lvlindicator, content);
+        writeToFile(line);
+        qFatal().noquote().nospace() << "\033[41m" << line << "\033[0m";
         break;
     }
 };

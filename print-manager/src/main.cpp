@@ -15,6 +15,7 @@
 #include <QFile>
 #include <QDir>
 #include <QSslSocket>
+#include "errorhandler.hpp"
 
 //Atyrnal 10/29/2025
 #define CONFIG_MAX_SIZE 1000000
@@ -51,6 +52,7 @@ int main(int argc, char *argv[])
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
 
+    ErrorHandler::initLogFile("latest.log");
     QTBackend bk(&app, &engine, &engine);
     engine.loadFromModule("PolyhydranPrintManager", "Main"); //Load the QML Main.qml declarative ui file
 

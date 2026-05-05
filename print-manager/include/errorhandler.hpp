@@ -23,12 +23,16 @@ public:
         softHandle(*err);
     };
     static void log(const class Log &log);
+    static void initLogFile(const QString &path);
     static inline QTBackend* bk = nullptr;
 private:
     static QString genLogLine(const QString &lvl, const QString &content);
     static QString genLogLineLog(const QString &lvl, const QString &content);
     static void printLn(ErrorLevel lvl, const QString &content);
     static void printLn(const Error &err);
+    static void writeToFile(const QString &line);
+    static inline QFile* logFile = nullptr;
+    static inline QTextStream* logStream = nullptr;
 };
 
 #endif // ERRORHANDLER_HPP
