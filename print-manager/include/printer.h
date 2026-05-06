@@ -38,7 +38,7 @@ protected:
     QString model;
     QString brand;
     QNetworkAccessManager manager;
-    bool connectionStatus;
+    bool connectionStatus = false;
 };
 
 

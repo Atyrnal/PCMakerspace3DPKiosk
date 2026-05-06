@@ -80,12 +80,15 @@ quint32 PrinterManager::addPrinter(Printer* p) {
                 QObject::connect(bblEmu, &BambuEmulator::jobLoaded, this, [this](quint32 id, const QString &filepath, QMap<QString, QString> properties) {
                     properties.insert("brand", "BambuLab");
                     properties.insert("id", QString::number(id));
-                    emit this->jobLoaded(id, filepath, properties);
+
                     QVariantMap propertiesForJS; //Convert to QVariantMap for use in QML
                     for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
                         propertiesForJS.insert(it.key(), it.value());
                     }
-                    if (getPrinter(id) != nullptr) propertiesForJS.insert("printerName", getPrinter(id)->getName());
+                    if (getPrinter(id) != nullptr) return;
+                    propertiesForJS.insert("printerName", getPrinter(id)->getName());
+                    propertiesForJS.insert("connected", getPrinter(id)->getConnectionStatus());
+                    emit this->jobLoaded(id, filepath, properties);
                     emit this->jobInfoLoaded(propertiesForJS);
                 });
             }
@@ -97,15 +100,19 @@ quint32 PrinterManager::addPrinter(Printer* p) {
     OctoprintEmulator* emu = new OctoprintEmulator(baseOctPort+id);
     octEmus.insert(id, emu);
     QObject::connect(emu, &OctoprintEmulator::jobLoaded, this, [this, id](const QString &filepath, QMap<QString, QString> properties) {
+        if (getPrinter(id) == nullptr) return;
         properties.insert("brand", printers[id]->getBrand());
         properties.insert("id", QString::number(id));
+
         emit this->jobLoaded(id, filepath, properties);
         QVariantMap propertiesForJS; //Convert to QVariantMap for use in QML
         for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
             propertiesForJS.insert(it.key(), it.value());
         }
-        if (getPrinter(id) != nullptr) propertiesForJS.insert("printerName", getPrinter(id)->getName());
+        propertiesForJS.insert("printerName", getPrinter(id)->getName());
+        propertiesForJS.insert("connected", getPrinter(id)->getConnectionStatus());
         emit this->jobInfoLoaded(propertiesForJS);
+
     });
     Log::write("OctoprintEmulatorServer", "Printer " + p->getName() + " listening on 127.0.0.1:" + QString::number(baseOctPort+id));
     return id;

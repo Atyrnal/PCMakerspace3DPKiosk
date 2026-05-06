@@ -10,15 +10,26 @@
 #include <QFileInfo>
 #include <QJsonObject>
 #include "errors.hpp"
+#include <QTimer>
 
 Prusa::Prusa(QObject* parent) : Printer(parent) {
     //connect(&manager, &QNetworkAccessManager::authenticationRequired, this, &PrusaLink::provideAuth);
+    testConnection();
+    QTimer *timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, this, &Prusa::testConnection);
+    timer->start(10000);
 }
 
 Prusa::Prusa(QString name, QString model, QString hostname, QString apiKey, QString storageType, QObject* parent) : Printer(name, model, "Prusa", parent) {
     this->hostname = hostname;
     this->apiKey = apiKey;
     this->storageType = storageType;
+    testConnection();
+    QTimer *timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, this, [this](){
+        if (connectedOnce) testConnection();
+    });
+    timer->start(10000);
 }
 
 
@@ -87,6 +98,46 @@ void Prusa::sendGCode(QString filepath) {
         //QByteArray resp = uploadReply->readAll();
         Log::write("PrusaPrinter("+name+"@"+hostname+")", "Print upload succeeded");
         uploadReply->deleteLater();
+    });
+}
+
+void Prusa::testConnection() {
+    QUrl testUrl(QString("http://%1/api/v1/info").arg(hostname));
+    QNetworkRequest testReq(testUrl);
+    testReq.setRawHeader("X-Api-Key", apiKey.toUtf8());
+    QNetworkReply* testReply = manager.get(testReq);
+    QObject::connect(testReply, &QNetworkReply::finished, this, [this, testReply]() {
+        if (testReply->error() != QNetworkReply::NoError) {
+            if (testReply->error() >= 100) Error::softHandle("PrusaPrinterConnectionTestError", testReply->errorString() + " " + QString::number(testReply->error()));
+            if (connectionStatus) {
+                emit this->connectionUpdated(false);
+                Log::write("PrusaPrinter("+name+"@"+hostname+")", "Disconnected from printer");
+            } else if (!connectedOnce) {
+                Error::handle("PrusaPrinterConnectionTestError", "Unable to connect to printer " + name, El::Warning);
+            }
+            connectionStatus = false;
+            return;
+        }
+        //Success
+        if (!connectionStatus) {
+            Log::write("PrusaPrinter("+name+"@"+hostname+")", "Connected successfully");
+            emit this->connectionUpdated(true);
+        }
+        connectionStatus = true;
+        connectedOnce = true;
+        return;
+    });
+    QTimer::singleShot(10000, this, [this, testReply](){
+        if (!testReply->isFinished()) {
+            if (connectionStatus) {
+                emit this->connectionUpdated(false);
+                Log::write("PrusaPrinter("+name+"@"+hostname+")", "Disconnected from printer");
+            } else if (!connectedOnce) {
+                Error::handle("PrusaPrinterConnectionTestError", "Unable to connect to printer " + name, El::Warning);
+            }
+            connectionStatus = false;
+        }
+        testReply->deleteLater();
     });
 }
 

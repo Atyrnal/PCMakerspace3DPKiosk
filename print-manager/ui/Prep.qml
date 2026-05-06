@@ -7,6 +7,8 @@ import PolyhydranPrintManager
 Item {
     // anchors.fill: parent
     // anchors.centerIn: parent
+    property bool error: false
+
     Item {
         height: childrenRect.height
         width: parent.width
@@ -28,8 +30,8 @@ Item {
         Rectangle {
             anchors.top: prepLabel.bottom
             anchors.topMargin: 20
-            width: printInfoText.implicitWidth + 20
-            height: printInfoText.implicitHeight + 20
+            width: ((error) ? err.implicitWidth : printInfoText.implicitWidth) + 20
+            height: ((error) ? err.implicitHeight : printInfoText.implicitHeight) + 20
             color : Theme.background
             anchors.horizontalCenter: parent.horizontalCenter
             border.width: 2
@@ -46,9 +48,23 @@ Item {
                 anchors.topMargin: 10
                 color: Theme.text
                 font.pointSize: 18
+                visible:!error
+            }
+            Text {
+                id:err
+                anchors.horizontalCenter: parent.horizontalCenter
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                anchors.top: parent.top
+                anchors.topMargin: 10
+                text: "Selected printer is not connected"
+                font.pointSize: 20
+                color: "#ff2828"
+                visible:error
             }
         }
         Item {
+            visible: !error
             width: printInfoRect.width
             height: 200
             anchors.top:printInfoRect.bottom
@@ -95,13 +111,12 @@ Item {
                 }
             }
         }
+
     }
 
     Connections {
         target: backend
         function onPrintInfoLoaded(printInfo) {
-            console.log("Print has been loaded!")
-            console.log(printInfo)
             let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${(printInfo.hasOwnProperty("filament")) ? printInfo.filament : printInfo.filamentType}\nWeight: ${(printInfo.weight.trim().endsWith("g")) ? printInfo.weight : printInfo.weight + "g"}\nDuration: ${printInfo.duration}`;
             if (printInfo.hasOwnProperty("printerName")) op += `\nPrinter Name: ${printInfo.printerName}`
             if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
@@ -112,6 +127,7 @@ Item {
                 msfButton.checked = true
                 psfButton.checked = false
             }
+            error = !printInfo.connected
 
             printInfoText.text = op
         }
@@ -120,14 +136,13 @@ Item {
     Connections {
         target: printermanager
         function onJobInfoLoaded(printInfo) {
-            console.log("Job has been loaded!")
-            console.log(printInfo)
             let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${(printInfo.hasOwnProperty("filament")) ? printInfo.filament : printInfo.filamentType}\nWeight: ${(printInfo.weight.trim().endsWith("g")) ? printInfo.weight : printInfo.weight + "g"}\nDuration: ${printInfo.duration}`;
             if (printInfo.hasOwnProperty("printerName")) op += `\nPrinter Name: ${printInfo.printerName}`
             if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
             printInfoText.text = op
             msfButton.checked = true
             psfButton.checked = false
+            error = !printInfo.connected
 
             rootWindow.flags |= Qt.WindowStaysOnTopHint
             rootWindow.show()
@@ -146,6 +161,7 @@ Item {
         onClicked: {
             rootWindow.appstate = Main.AppState.Idle
             printInfoText.text = "No print information found"
+            error = false
         }
         width: 160
         height: 40
@@ -157,6 +173,7 @@ Item {
     }
 
     RoundButtonC {
+        visible: !error
         id: beginPrintButton
         anchors.bottom: parent.bottom
         anchors.right: parent.right
@@ -165,6 +182,7 @@ Item {
         onClicked: {
             rootWindow.appstate = Main.AppState.UserScan
             printInfoText.text = "No print information found"
+            error = false
             backend.setLoadedPrintFilamentProvider(psfButton.checked)
         }
         width: 160

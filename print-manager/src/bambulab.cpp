@@ -12,6 +12,7 @@
 #include <QSslCipher>
 #include <QSslKey>
 #include "errors.hpp"
+#include <QTimer>
 
 BambuLab::BambuLab(QObject* parent) : Printer(parent), mqtt() {}
 
@@ -55,6 +56,11 @@ void BambuLab::loadCertificate(Func callback) {
         socket->deleteLater();
     });
     socket->connectToHostEncrypted(hostname, port);
+    QTimer::singleShot(10000, this, [this, socket](){
+        if (certificate.isNull() && !socket->isEncrypted()) {
+            Error::handle("BambuLabPrinterConnectionError", "Unable to connect to printer " + name, El::Warning);
+        }
+    });
 }
 
 void BambuLab::startConnection() {
@@ -78,21 +84,30 @@ void BambuLab::startConnection() {
     requestTopic = QMqttTopicName{QString("device/%1/request").arg(virtualSN)};
 
     QObject::connect(mqtt, &QMqttClient::connected, this, [this]() {
+        connectedOnce = true;
         Log::write("BambuLabPrinter("+name+"@"+hostname+")", "Connected to printer MQTT");
         emit this->connectionUpdated(true);
         this->connectionStatus = true;
 
         this->mqtt->subscribe(reportFilter);
-        isReady = true;
-        emit this->ready();
+        if (!isReady) {
+            isReady = true;
+            emit this->ready();
+        }
     });
 
     QObject::connect(mqtt, &QMqttClient::disconnected, this, [this]() {
-        Log::write("BambuLabPrinter("+name+"@"+hostname+")", "Disconnected from printer MQTT");
-        //qDebug() << "State:" << mqtt->state();
-        if (mqtt->error() > 0) Error::handle("BambuLabPrinterMqttError", "Mqtt connection errored for printer " + name + ": " + QString(static_cast<quint16>(mqtt->error())));
+        if (connectedOnce) {
+            if (connectionStatus) Log::write("BambuLabPrinter("+name+"@"+hostname+")", "Disconnected from printer MQTT");
+            QTimer::singleShot(10000, this, [this](){
+                this->reconnect();
+            });
+        } else {
+            Error::handle("BambuLabPrinterConnectionError", "Unable to connect to printer " + name, El::Warning);
+        }
         emit this->connectionUpdated(false);
         this->connectionStatus = false;
+        if (mqtt->error() > 0) Error::handle("BambuLabPrinterMqttError", "Mqtt connection errored for printer " + name + ": " + QString::number(static_cast<quint16>(mqtt->error())));
     });
 
     QObject::connect(mqtt, &QMqttClient::messageReceived, this, [this](const QByteArray &message, const QMqttTopicName &topic) {
@@ -106,6 +121,16 @@ void BambuLab::startConnection() {
 
     //qDebug() << reportFilter << "\n" << requestFilter;
 
+    mqtt->connectToHostEncrypted(sslConfig);
+    qobject_cast<QSslSocket*>(mqtt->transport())->setPeerVerifyName(virtualSN); //Set CommonName to the serial number to match certificate
+}
+
+void BambuLab::reconnect() {
+    //Log::write("BambuLabPrinter("+name+"@"+hostname+")", "Attempting to reconnect...");
+    QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
+    sslConfig.setPeerVerifyMode(QSslSocket::VerifyPeer);
+    sslConfig.setProtocol(QSsl::TlsV1_2OrLater);
+    sslConfig.setCaCertificates({certificate});
     mqtt->connectToHostEncrypted(sslConfig);
     qobject_cast<QSslSocket*>(mqtt->transport())->setPeerVerifyName(virtualSN); //Set CommonName to the serial number to match certificate
 }

@@ -27,7 +27,9 @@ protected:
     QString hostname;
     QString apiKey;
     QString storageType;
+    void testConnection();
 private:
+    bool connectedOnce = false;
     void sendGCode(QString filepath);
     //bool testConnection();
 };

@@ -172,7 +172,9 @@ protected:
     void requestPrintProject(const BambuPrintOptions &options);
     void startPrintGCode(const QString &gcodeFilepath);
     void startPrintProject(const QString &projFilepath, const BambuPrintOptions &opt);
+    void reconnect();
 private:
+    bool connectedOnce = false;
     void updateState();
     bool isReady = false;
     QString virtualIP;
