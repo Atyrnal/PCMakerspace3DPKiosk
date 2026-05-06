@@ -197,7 +197,6 @@ void BambuEmulator::recieveFile(QTcpSocket* controlSocket, BambuLab* printer) {
         connect(socket, &QSslSocket::disconnected, this, [socket, printer, fileBuffer, controlSocket, ftpsServer]() {
             QByteArray remaining = socket->readAll();
             if (!remaining.isEmpty()) fileBuffer->append(remaining);
-
             // Validate
             if (fileBuffer->size() < 4) {
                 Error("BambuEmulatorFTPSError", "Received file is too small", El::Warning).handle();
@@ -216,7 +215,7 @@ void BambuEmulator::recieveFile(QTcpSocket* controlSocket, BambuLab* printer) {
                     uploadDir.mkpath(".");
                 }
                 QFile tmpgcode("uploaded/" + printer->filename);
-                if(!tmpgcode.open(QIODevice::WriteOnly)) Error("BambuEmulatorFTPSError", "Unable to save recieved gcode file", El::Critical).handle();
+                if(!tmpgcode.open(QIODevice::WriteOnly)) return Error("BambuEmulatorFTPSError", "Unable to save recieved gcode file", El::Critical).handle();
                 tmpgcode.write(*fileBuffer);
                 tmpgcode.close();
                 Log::write("BambuEmulatorFTPS", "Saved " + printer->filename + " successfully");
