@@ -195,6 +195,18 @@ void BambuEmulator::recieveFile(QTcpSocket* controlSocket, BambuLab* printer) {
         });
 
         connect(socket, &QSslSocket::disconnected, this, [socket, printer, fileBuffer, controlSocket, ftpsServer]() {
+            QByteArray remaining = socket->readAll();
+            if (!remaining.isEmpty()) fileBuffer->append(remaining);
+
+            // Validate
+            if (fileBuffer->size() < 4) {
+                Error("BambuEmulatorFTPSError", "Received file is too small", El::Warning).handle();
+                delete fileBuffer;
+                socket->deleteLater();
+                ftpsServer->deleteLater();
+                return;
+            }
+
             //Log::write("BambuEmulatorFTPS", "FTPS fileserver disconnected for " + printer->name);
             if (controlSocket == nullptr) Error("BambuEmulatorFTPSError", "Invalid pointer to control socket", El::Critical).handle();
             else controlSocket->write("226 Transfer complete\r\n");
