@@ -24,6 +24,7 @@ public:
     };
     static void log(const class Log &log);
     static void initLogFile(const QString &path);
+    static void initLogFileTimestamp(const QString &dirpath);
     static inline QTBackend* bk = nullptr;
 private:
     static QString genLogLine(const QString &lvl, const QString &content);
@@ -31,8 +32,7 @@ private:
     static void printLn(ErrorLevel lvl, const QString &content);
     static void printLn(const Error &err);
     static void writeToFile(const QString &line);
-    static inline QFile* logFile = nullptr;
-    static inline QTextStream* logStream = nullptr;
+    static inline QList<QPair<QFile*, QTextStream*>> logFiles;
 };
 
 #endif // ERRORHANDLER_HPP

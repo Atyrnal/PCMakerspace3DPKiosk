@@ -52,7 +52,18 @@ int main(int argc, char *argv[])
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
 
-    ErrorHandler::initLogFile("latest.log");
+
+    QDir logDir = QDir("logs");
+    if (!logDir.exists()) {
+        logDir.mkpath(".");
+    }
+    ErrorHandler::initLogFile("logs/latest.log");
+    ErrorHandler::initLogFileTimestamp("logs");
+
+    QDir uploadDir = QDir("uploaded");
+    if (!uploadDir.exists()) {
+        uploadDir.mkpath(".");
+    }
     QTBackend bk(&app, &engine, &engine);
     engine.loadFromModule("PolyhydranPrintManager", "Main"); //Load the QML Main.qml declarative ui file
 
