@@ -8,6 +8,7 @@ Item {
     // anchors.fill: parent
     // anchors.centerIn: parent
     property bool error: false
+    id:prep
 
     Item {
         height: childrenRect.height
@@ -114,41 +115,56 @@ Item {
 
     }
 
+    function truncateFilename(fullFilename : string) : string {
+        let filename;
+        const maxLen = 45;
+        if (fullFilename.length > maxLen) {
+            if (fullFilename.endsWith(".gcode.3mf")) {
+                filename = fullFilename.slice(0,33) + "...gcode.3mf";
+            } else {
+                let dotparts = fullFilename.split(".")
+                filename = fullFilename.slice(0,maxLen-2-dotparts[dotparts.length -1].length) + "..." + dotparts[dotparts.length-1]
+            }
+
+        } else filename = fullFilename
+        return filename
+    }
+
+    function loadPrintInfo(printInfo) {
+        let op = `Filename: ${truncateFilename(printInfo.filename)}\nPrinter: ${printInfo.printer}\nFilament: ${(printInfo.hasOwnProperty("filament")) ? printInfo.filament : printInfo.filamentType}\nWeight: ${(printInfo.weight.trim().endsWith("g")) ? printInfo.weight : printInfo.weight + "g"}\nDuration: ${printInfo.duration}`;
+        if (printInfo.hasOwnProperty("printerName")) op += `\nPrinter Name: ${printInfo.printerName}`
+        if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
+        if (printInfo.hasOwnProperty("personalFilament")) {
+            msfButton.checked = !printInfo.personalFilament
+            psfButton.checked = printInfo.personalFilament
+        } else {
+            msfButton.checked = true
+            psfButton.checked = false
+        }
+        error = !printInfo.connected
+        printInfoText.text = op
+    }
+
+    function raiseWindow() {
+        rootWindow.flags |= Qt.WindowStaysOnTopHint
+        rootWindow.show()
+        rootWindow.raise()
+        rootWindow.requestActivate()
+        rootWindow.flags &= ~Qt.WindowStaysOnTopHint
+    }
+
     Connections {
         target: backend
         function onPrintInfoLoaded(printInfo) {
-            let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${(printInfo.hasOwnProperty("filament")) ? printInfo.filament : printInfo.filamentType}\nWeight: ${(printInfo.weight.trim().endsWith("g")) ? printInfo.weight : printInfo.weight + "g"}\nDuration: ${printInfo.duration}`;
-            if (printInfo.hasOwnProperty("printerName")) op += `\nPrinter Name: ${printInfo.printerName}`
-            if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
-            if (printInfo.hasOwnProperty("personalFilament")) {
-                msfButton.checked = !printInfo.personalFilament
-                psfButton.checked = printInfo.personalFilament
-            } else {
-                msfButton.checked = true
-                psfButton.checked = false
-            }
-            error = !printInfo.connected
-
-            printInfoText.text = op
+            prep.loadPrintInfo(printInfo)
         }
     }
 
     Connections {
         target: printermanager
         function onJobInfoLoaded(printInfo) {
-            let op = `Filename: ${printInfo.filename}\nPrinter: ${printInfo.printer}\nFilament: ${(printInfo.hasOwnProperty("filament")) ? printInfo.filament : printInfo.filamentType}\nWeight: ${(printInfo.weight.trim().endsWith("g")) ? printInfo.weight : printInfo.weight + "g"}\nDuration: ${printInfo.duration}`;
-            if (printInfo.hasOwnProperty("printerName")) op += `\nPrinter Name: ${printInfo.printerName}`
-            if (printInfo.hasOwnProperty("printSettings")) op += `\nPrint Settings: ${printInfo.printSettings}`
-            printInfoText.text = op
-            msfButton.checked = true
-            psfButton.checked = false
-            error = !printInfo.connected
-
-            rootWindow.flags |= Qt.WindowStaysOnTopHint
-            rootWindow.show()
-            rootWindow.raise()
-            rootWindow.requestActivate()
-            rootWindow.flags &= ~Qt.WindowStaysOnTopHint
+            prep.loadPrintInfo(printInfo)
+            prep.raiseWindow()
         }
     }
 
