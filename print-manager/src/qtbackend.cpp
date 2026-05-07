@@ -161,7 +161,7 @@ Q_INVOKABLE void QTBackend::fileUploaded(const QUrl &fileUrl) {
     for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
         propertiesForJS.insert(it.key(), it.value());
     }
-    if (pm->getPrinter(loadedPrint.printerId) != nullptr) return;
+    if (pm->getPrinter(loadedPrint.printerId) == nullptr) return;
     propertiesForJS.insert("printerName", pm->getPrinter(loadedPrint.printerId)->getName());
     propertiesForJS.insert("connected", pm->getPrinter(loadedPrint.printerId)->getConnectionStatus());
     Log::write("QtBackend", "Loaded print info for: " + filepath);

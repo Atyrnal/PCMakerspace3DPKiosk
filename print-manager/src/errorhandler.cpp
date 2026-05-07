@@ -22,19 +22,27 @@ void Error::softHandle() const {
 };
 
 void ErrorHandler::initLogFile(const QString &path) {
-    logFile = new QFile(path);
-    if (logFile->open(QIODevice::Append | QIODevice::Text)) {
+    QFile* logFile = new QFile(path);
+    QTextStream* logStream = nullptr;
+    if (logFile->open(QIODevice::WriteOnly | QIODevice::Text)) {
         logStream = new QTextStream(logFile);
+        logFiles.append(QPair<QFile*, QTextStream*>(logFile, logStream));
     } else {
         delete logFile;
         logFile = nullptr;
     }
 }
 
+void ErrorHandler::initLogFileTimestamp(const QString &dirpath) {
+    initLogFile(((dirpath.isEmpty()) ? "" : dirpath + "/") + QDateTime::currentDateTimeUtc().toString("yyyyMMdd_hhmmss") + ".log");
+}
+
 void ErrorHandler::writeToFile(const QString &line) {
-    if (logStream == nullptr) return;
-    *logStream << line << "\n";
-    logStream->flush();
+    for (auto it = logFiles.constBegin(); it != logFiles.constEnd(); it++) {
+        if (it->second == nullptr) return;
+        *(it->second) << line << "\n";
+        it->second->flush();
+    }
 }
 
 void ErrorHandler::softHandle(const Error &err) {

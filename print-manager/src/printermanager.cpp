@@ -85,7 +85,7 @@ quint32 PrinterManager::addPrinter(Printer* p) {
                     for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
                         propertiesForJS.insert(it.key(), it.value());
                     }
-                    if (getPrinter(id) != nullptr) return;
+                    if (getPrinter(id) == nullptr) return;
                     propertiesForJS.insert("printerName", getPrinter(id)->getName());
                     propertiesForJS.insert("connected", getPrinter(id)->getConnectionStatus());
                     emit this->jobLoaded(id, filepath, properties);

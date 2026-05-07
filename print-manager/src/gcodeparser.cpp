@@ -73,14 +73,15 @@ Eo<QMap<QString, QString>> GCodeParser::parse3mfFile(QString filepath, quint16 p
 
 QMap<QString, QByteArray> GCodeParser::extractGCode3mf(const QString &filepath) {
     int err = 0;
-    QByteArray raw = QFile(filepath).readAll();
-    if (raw.left(2) != QByteArray("\x50\x4b", 2) || !raw.contains(QByteArray("\x50\x4b\x05\x06", 4))) {
-        Error::handle("GcodeParserExtract3mfError", "File " + filepath + " is not in 3MF/ZIP format");
-        return QMap<QString, QByteArray>();
-    }
     zip_t* za = zip_open(filepath.toUtf8().constData(), ZIP_RDONLY, &err);
     QMap<QString, QByteArray> output = QMap<QString, QByteArray>();
-    if (!za) return output;
+    if (!za) {
+        zip_error_t error;
+        zip_error_init_with_code(&error, err);
+        Error::handle("GcodeParserExtract3mfError", "File " + filepath + " is not in 3MF/ZIP format: " + zip_error_strerror(&error), El::Critical);
+        zip_error_fini(&error);
+        return output;
+    }
 
     struct zip_stat st;
     zip_stat_init(&st);
