@@ -32,7 +32,7 @@ Item { //idleFrame container
                     height: childrenRect.height
                     Image {
                         id : polyhydranLogo2
-                        source: (Theme.isDark) ? "../resources/StellatedPolyhedronWhite.png" : "../resources/StellatedPolyhedronDark.png"
+                        source: "../resources/StellatedPolyhedronWhite.png"
                         height: 96
                         sourceSize: Qt.size(1080, 1080)
                         fillMode: Image.PreserveAspectFit
@@ -88,7 +88,7 @@ Item { //idleFrame container
                     }
                     Image {
                         id : customerLogo
-                        source: "../resources/pcm_logo_v2_white_purple_128.png"
+                        source: (Theme.isDark) ? "../resources/pcm_logo_v2_white_purple_128.png" : "../resources/pcm_logo_v2_black_darkpurple_128.png"
                         height: 128
                         fillMode: Image.PreserveAspectFit
                         anchors.left: parent.left
@@ -104,7 +104,7 @@ Item { //idleFrame container
                             font.family: inter.name
                             font.pointSize: 18
                             text : "Physical"
-                            color: "#ffffff"
+                            color: Theme.text
 
                             horizontalAlignment: Text.AlignLeft
                         }
@@ -112,7 +112,7 @@ Item { //idleFrame container
                             font.family: inter.name
                             font.pointSize: 18
                             text : "Computing"
-                            color: "#ffffff"
+                            color: Theme.text
 
                             horizontalAlignment: Text.AlignLeft
                         }
@@ -120,7 +120,7 @@ Item { //idleFrame container
                             font.family: inter.name
                             font.pointSize: 18
                             text : "Makerspace"
-                            color: "#ffffff"
+                            color: Theme.text
                             font.bold:true
                             horizontalAlignment: Text.AlignLeft
                         }
@@ -159,7 +159,7 @@ Item { //idleFrame container
             width: 200
             height: 50
             radius: 5
-            text_color: Theme.text
+            text_color: Theme.primaryText
             color: Theme.primary
             pressed_color : Theme.primaryActive
             border_width: 0
@@ -179,7 +179,7 @@ Item { //idleFrame container
             width: 200
             height: 50
             radius: 5
-            text_color: Theme.text
+            text_color: Theme.primaryText
             border_width: 0
             color: Theme.primary
             pressed_color : Theme.primaryActive

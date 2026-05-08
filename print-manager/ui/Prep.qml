@@ -185,6 +185,7 @@ Item {
         border_width: 0
         color: Theme.primary
         pressed_color : Theme.primaryActive
+        text_color: Theme.primaryText
         label_text: "Cancel"
     }
 
@@ -209,5 +210,6 @@ Item {
         color: Theme.primary
         pressed_color : Theme.primaryActive
         label_text : "Print"
+        text_color : Theme.primaryText
     }
 }

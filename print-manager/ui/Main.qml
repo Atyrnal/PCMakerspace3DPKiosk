@@ -129,7 +129,7 @@ ApplicationWindow { //Root app window
 
                     Image {
                         id : polyhydranLogo
-                        source: (Theme.isDark) ? "../resources/StellatedPolyhedronWhite.png" : "../resources/StellatedPolyhedronDark.png"
+                        source: "../resources/StellatedPolyhedronWhite.png"
                         height: 64
                         sourceSize: Qt.size(1080, 1080)
                         fillMode: Image.PreserveAspectFit

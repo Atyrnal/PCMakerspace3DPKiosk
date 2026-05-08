@@ -45,7 +45,7 @@ Item {
         radius: 5
         color: Theme.primary
         pressed_color : Theme.primaryActive
-        text_color: "#fff"
+        text_color: Theme.primaryText
         border_width: 0
         label_text: "OK"
 
@@ -67,7 +67,7 @@ Item {
         radius: 5
         color: Theme.primary
         pressed_color : Theme.primaryActive
-        text_color: "#fff"
+        text_color: Theme.primaryText
         border_width: 0
         label_text: "Cancel"
     }

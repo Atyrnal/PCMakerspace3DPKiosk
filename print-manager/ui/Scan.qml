@@ -89,5 +89,6 @@ Item { //scanFrame container
         color: "#8188cc"
         pressed_color : "#50568a"
         label_text: "Cancel"
+        text_color: Theme.primaryText
     }
 }

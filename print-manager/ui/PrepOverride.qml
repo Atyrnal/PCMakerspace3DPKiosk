@@ -224,6 +224,7 @@ Item {
         color: Theme.primary
         pressed_color : Theme.primaryActive
         label_text: "Cancel"
+        text_color: Theme.primaryText
     }
 
     RoundButtonC {
@@ -248,5 +249,6 @@ Item {
         color: Theme.primary
         pressed_color : Theme.primaryActive
         label_text : "Override"
+        text_color: Theme.primaryText
     }
 }
