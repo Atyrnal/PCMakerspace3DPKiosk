@@ -8,7 +8,8 @@ Item {
     // anchors.fill: parent
     // anchors.centerIn: parent
     property bool error: false
-    id:prep
+    property var printIssues: ({})
+    id:prepOverride
 
     Item {
         height: childrenRect.height
@@ -22,8 +23,8 @@ Item {
             verticalAlignment: Text.AlignVCenter
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: 120
-            font.pointSize: 36
+            anchors.topMargin: 90
+            font.pointSize: 24
             font.bold: true
             color: Theme.text
         }
@@ -48,7 +49,7 @@ Item {
                 anchors.top: parent.top
                 anchors.topMargin: 10
                 color: Theme.text
-                font.pointSize: 18
+                font.pointSize: 12
                 visible:!error
             }
             Text {
@@ -64,11 +65,36 @@ Item {
                 visible:error
             }
         }
+        Rectangle {
+            anchors.top: printInfoRect.bottom
+            anchors.topMargin: 20
+            width: printIssuesText.implicitWidth + 20
+            height: printIssuesText.implicitHeight + 20
+            color : Theme.background
+            anchors.horizontalCenter: parent.horizontalCenter
+            border.width: 2
+            border.color: Theme.text
+            radius: 2
+            visible:!error
+            id: printIssuesRect
+            Text {
+                id:printIssuesText
+                anchors.horizontalCenter: parent.horizontalCenter
+                horizontalAlignment: Text.AlignLeft
+                verticalAlignment: Text.AlignVCenter
+                anchors.top: parent.top
+                anchors.topMargin: 10
+                text: "No issues found"
+                font.pointSize: 12
+                color: (text === "No issues found") ? "#77ff55": "#ffbb28"
+
+            }
+        }
         Item {
             visible: !error
             width: printInfoRect.width
             height: 200
-            anchors.top:printInfoRect.bottom
+            anchors.top:printIssuesRect.bottom
             anchors.topMargin: 12
             anchors.horizontalCenter: parent.horizontalCenter
             Text {
@@ -93,6 +119,8 @@ Item {
                         text: "Makerspace Filament"
                         id: msfButton
                         onClicked: {
+                            printIssues.personalFilament = false
+                            loadPrintIssues(printIssues)
                             backend.setLoadedPrintFilamentProvider(psfButton.checked)
                         }
                     }
@@ -101,6 +129,8 @@ Item {
                         text: "Personal Filament"
                         id: psfButton
                         onClicked: {
+                            printIssues.personalFilament = true
+                            loadPrintIssues(printIssues)
                             backend.setLoadedPrintFilamentProvider(psfButton.checked)
                         }
                     }
@@ -145,31 +175,38 @@ Item {
         printInfoText.text = op
     }
 
-    function raiseWindow() {
-        rootWindow.flags |= Qt.WindowStaysOnTopHint
-        rootWindow.show()
-        rootWindow.raise()
-        rootWindow.requestActivate()
-        rootWindow.flags &= ~Qt.WindowStaysOnTopHint
+    function loadPrintIssues(issuesInfo) {
+        let op = ""
+        if (issuesInfo.hasOwnProperty("isRegistered") && !issuesInfo.isRegistered) { printIssuesText.text = "User not registered"; return; }
+        if (issuesInfo.hasOwnProperty("trained") && !issuesInfo.trained) op+="\nTraining not completed"
+        if (issuesInfo.hasOwnProperty("isCICS") && issuesInfo.hasOwnProperty("duration") && issuesInfo.hasOwnProperty("personalFilament")) {
+            if (issuesInfo.isCICS) {
+                if (issuesInfo.personalFilament && issuesInfo.duration > 10) op+="\nPrint longer than 10 hours"
+                if (!issuesInfo.personalFilament && issuesInfo.duration > 6) op+="\nPrinting longer than 6 hours with Makerspace Filament"
+            } else {
+                if(!issuesInfo.personalFilament) op+="\nNon-CICS printing with Makerspace Filament"
+                if(issuesInfo.duration > 6) op+="\nNon-CICS printing longer than 6 hours"
+            }
+        }     
+        if (op.length > 1) {
+            printIssuesText.text = op.slice(1)
+        } else {
+            printIssuesText.text = "No issues found"
+        }
+
     }
 
     Connections {
         target: backend
-        function onPrintInfoLoaded(printInfo) {
-            prep.loadPrintInfo(printInfo)
-        }
-    }
-
-    Connections {
-        target: printermanager
-        function onJobInfoLoaded(printInfo) {
-            prep.loadPrintInfo(printInfo)
-            prep.raiseWindow()
+        function onPrintIssuesLoaded(printInfo, issuesInfo) {
+            prepOverride.loadPrintInfo(printInfo)
+            printIssues = issuesInfo
+            prepOverride.loadPrintIssues(issuesInfo)
         }
     }
 
     RoundButtonC {
-        id: cancelPrepButton
+        id: cancelPrepOverrideButton
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.leftMargin: 10
@@ -177,6 +214,7 @@ Item {
         onClicked: {
             rootWindow.appstate = Main.AppState.Idle
             printInfoText.text = "No print information found"
+            printIssuesText.text = "No Issues"
             error = false
         }
         width: 160
@@ -190,15 +228,16 @@ Item {
 
     RoundButtonC {
         visible: !error
-        id: beginPrintButton
+        id: beginPrintOverrideButton
         anchors.bottom: parent.bottom
         anchors.right: parent.right
         anchors.rightMargin: 10
         anchors.bottomMargin: 10
         onClicked: {
-            rootWindow.scancontext = Main.ScanContext.UserAuth
+            rootWindow.scancontext = Main.ScanContext.StaffAuth
             rootWindow.appstate = Main.AppState.Scan
             printInfoText.text = "No print information found"
+            printIssuesText.text = "No Issues"
             error = false
             backend.setLoadedPrintFilamentProvider(psfButton.checked)
         }
@@ -208,6 +247,6 @@ Item {
         border_width: 0
         color: Theme.primary
         pressed_color : Theme.primaryActive
-        label_text : "Print"
+        label_text : "Override"
     }
 }

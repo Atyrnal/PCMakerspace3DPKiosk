@@ -79,8 +79,8 @@ Item { //scanFrame container
         anchors.leftMargin: 10
         anchors.bottomMargin: 10
         onClicked: {
+            rootWindow.scancontext = Main.ScanContext.NoContext
             rootWindow.appstate = Main.AppState.Idle
-            printInfoText.text = "No print information found"
         }
         width: 160
         height: 40

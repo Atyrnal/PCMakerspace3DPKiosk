@@ -15,6 +15,8 @@ import PolyhydranPrintManager
 
 //UI declarations
 
+
+
 ApplicationWindow { //Root app window
     id: rootWindow
     visible: true
@@ -26,12 +28,19 @@ ApplicationWindow { //Root app window
     enum AppState {
         Idle,
         Prep,
+        PrepOverride,
         Message,
-        UserScan,
-        StaffScan,
+        Scan,
         Printing,
         Loading,
         PrinterSelection
+    }
+
+    enum ScanContext {
+        NoContext,
+        UserAuth,
+        StaffAuth = 100,
+        StaffTraining
     }
 
     enum AppMode {
@@ -82,6 +91,7 @@ ApplicationWindow { //Root app window
 
     property int appstate: Main.AppState.Idle; //Track app state
     property int appmode : Main.AppMode.User; //Main.AppMode.User;
+    property int scancontext: Main.ScanContext.NoContext;
     property int transitionDuration: 1000;
 
     Connections {
@@ -154,7 +164,7 @@ ApplicationWindow { //Root app window
 
                 StackLayout {
 
-                currentIndex: (appstate > 3) ? appstate - 1 : appstate
+                currentIndex: appstate
                 anchors.fill: parent
 
                 Idle {
@@ -169,13 +179,17 @@ ApplicationWindow { //Root app window
                     id: prepFrame
                 }
 
+                PrepOverride {
+                    id: prepOverrideFrame
+                }
+
                 Message {
                     id: messageFrame
                 }
 
                 Scan {
                     id: scanFrame
-                    isStaff: rootWindow.appstate === Main.AppState.StaffScan
+                    isStaff: rootWindow.scancontext >= Main.ScanContext.StaffAuth
                 }
 
                 Item {

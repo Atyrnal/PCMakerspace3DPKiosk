@@ -20,7 +20,6 @@
 #include <QQmlApplicationEngine>
 #include <QSqlRecord>
 #include "printermanager.h"
-#include "errors.hpp"
 #include "ltx2aQT.h"
 #include <QCoreApplication>
 #include "airtable.h"
@@ -29,11 +28,18 @@
 enum AppState {
     Idle,
     Prep,
+    PrepOverride,
     Message,
-    UserScan,
-    StaffScan,
+    Scan,
     Printing,
     Loading
+};
+
+enum ScanContext {
+    NoContext,
+    UserAuth,
+    StaffAuth = 100,
+    StaffTraining
 };
 
 struct LoadedPrint {
@@ -42,6 +48,7 @@ struct LoadedPrint {
     QMap<QString,QString> printInfo;
     QString userID;
     bool isPersonalFilament;
+    QVariantMap issues;
 };
 
 class QTBackend : public QObject {
@@ -71,6 +78,7 @@ protected:
     QString currentUserID = "";
     QString currentStaffID = "";
     QVariantMap currentUser;
+    QSet<QString> staffCache;
 private:
     #ifdef Q_OS_WIN
     DWORD findProcessId(const QString &processName);
@@ -80,14 +88,20 @@ private:
     void printStartCheck(bool isStaff, bool justTrained=false);
     double parseDuration(const QString &durationString);
     AppState appstate();
+    ScanContext scancontext();
+    void completeTraining();
+    void showPrintOverridePrep();
+    void setCurrentStaff(QString id);
 
 
 signals:
     void printLoaded(quint32 id, const QString &gcodeFilepath, const QMap<QString, QString> &printInfo);
     void printInfoLoaded(const QVariantMap &printInfo);
+    void printIssuesLoaded(const QVariantMap &printInfo, const QVariantMap &printIssues);
     void messageReq(const QString &message, const QString &buttonText, const int &redirectState);
     void setAppmode(quint8 mode);
     void setAppstate(quint8 state);
+    void setScancontext(quint8 context);
     void tPrint(const QString &newtext);
     void closing();
 private slots:
