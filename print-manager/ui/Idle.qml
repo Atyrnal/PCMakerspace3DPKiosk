@@ -214,4 +214,17 @@ Item { //idleFrame container
         //     }
         // }
     }
+
+    Text { //Versiontext
+        id: versionText
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.bottomMargin: 6
+        anchors.leftMargin: 6
+        font.pointSize: 10
+        color: Theme.textSubtle
+        text: "Version " + versionStr
+        horizontalAlignment: Text.AlignLeft
+        verticalAlignment: Text.AlignBottom
+    }
 }

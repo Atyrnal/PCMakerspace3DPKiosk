@@ -23,6 +23,7 @@
 
 #define PRINTING_CERT_ID "recY34WO6fex1KMxO"
 
+#define APP_VERSION "0.1.0-alpha7"
 
 QTBackend::QTBackend(QCoreApplication* app, QQmlApplicationEngine* eng, QObject* parent) : QObject(parent) {
     ErrorHandler::bk = this;
@@ -36,6 +37,7 @@ QTBackend::QTBackend(QCoreApplication* app, QQmlApplicationEngine* eng, QObject*
     engine->rootContext()->setContextProperty("backend", this);
     engine->rootContext()->setContextProperty("printermanager", pm);
     engine->rootContext()->setContextProperty("printersModel", pm->getModel());
+    engine->rootContext()->setContextProperty("versionStr", APP_VERSION);
     #ifdef Q_OS_WIN
     engine->rootContext()->setContextProperty("isWindows", true);
     #else
