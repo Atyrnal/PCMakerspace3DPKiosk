@@ -169,19 +169,19 @@ protected:
     int devCap = 1;
     bool hasAms = false;
     QList<BambuAms> amsList;
+    void requestPushall();
     void requestPrintProject(const BambuPrintOptions &options);
     void startPrintGCode(const QString &gcodeFilepath);
     void startPrintProject(const QString &projFilepath, const BambuPrintOptions &opt);
     void reconnect();
 private:
     bool connectedOnce = false;
-    void updateState();
+    void updateState(QByteArray latestReportBytes);
     bool isReady = false;
     QString virtualIP;
     QString virtualSN /*= "undefined"*/;
     quint32 sequenceId = 0;
     QMqttTopicName requestTopic;
-    QByteArray latestReportBytes;
     QJsonObject latestReport;
     quint16 bindingPortTCP = 3000;
     quint16 bindingPortTLS = 3002;

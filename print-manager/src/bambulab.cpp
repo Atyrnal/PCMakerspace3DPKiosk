@@ -94,6 +94,7 @@ void BambuLab::startConnection() {
             isReady = true;
             emit this->ready();
         }
+        requestPushall();
     });
 
     QObject::connect(mqtt, &QMqttClient::disconnected, this, [this]() {
@@ -112,8 +113,9 @@ void BambuLab::startConnection() {
 
     QObject::connect(mqtt, &QMqttClient::messageReceived, this, [this](const QByteArray &message, const QMqttTopicName &topic) {
         emit messageRecieved(message, topic);
-        if (this->reportFilter.match(topic)) {
-            latestReportBytes = message;
+        if (this->reportFilter.match(topic)) { //TODO: Pushall vs push_status check
+            updateState(message);
+            //Log::write("BambuLabPrinter("+name+"@"+hostname+")", QJsonDocument(latestReport).toJson());
         } else {
             Error::handle("BambuLabPrinterMqttError", "Message recieved on unknown topic for printer " + name + ": " + topic.name());
         }
@@ -208,6 +210,22 @@ void BambuLab::setStorageType(const QString &storage) {
     this->storageType = storage;
 }
 
+void BambuLab::requestPushall() {
+    if (!connectionStatus) return;
+    if (!requestTopic.isValid()) return;
+    QJsonObject parameters {
+        {"sequence_id", QString::number(this->sequenceId++)},
+        {"command", "pushall"},
+        {"version", 1},
+        {"push_target", 1}
+    };
+    QJsonObject request{
+        {"pushing", parameters}
+    };
+    this->mqtt->publish(requestTopic, QJsonDocument(request).toJson(QJsonDocument::Compact));
+    Log::write("BambuLabPrinter("+name+"@"+hostname+")", "Sent pushall command");
+}
+
 void BambuLab::requestPrintProject(const BambuPrintOptions &options) {
     if (!connectionStatus) return;
     if (!requestTopic.isValid()) return;
@@ -251,7 +269,20 @@ void BambuLab::sendGCode(QString filepath) {
 }
 
 
-void BambuLab::updateState() {
+QJsonObject mergeObjects(const QJsonObject &base, const QJsonObject &overlay) {
+    QJsonObject result = base;
+    for (auto it = overlay.begin(); it != overlay.end(); ++it) {
+        if (result.contains(it.key()) && result[it.key()].isObject() && it.value().isObject()) {
+            // Recursively merge nested objects
+            result[it.key()] = mergeObjects(result[it.key()].toObject(), it.value().toObject());
+        } else {
+            result[it.key()] = it.value();
+        }
+    }
+    return result;
+}
+
+void BambuLab::updateState(QByteArray latestReportBytes) {
     QJsonParseError err = QJsonParseError();
     QJsonDocument doc = QJsonDocument::fromJson(latestReportBytes, &err);
     if (err.error != QJsonParseError::NoError) {
@@ -262,9 +293,10 @@ void BambuLab::updateState() {
         Error::handle("JsonParseError", "Bambu state report is not JSON Object", El::Warning);
         return;
     }
-    latestReport = doc.object();
+    latestReport = mergeObjects(latestReport, doc.object()); //Handle P1S partial data
 
 
+    //Update amsinfo
     QJsonObject amsInfo = latestReport.value("print").toObject().value("ams").toObject();
     if (amsInfo.value("ams_exist_bits") == "1") {
         this->hasAms = true;
