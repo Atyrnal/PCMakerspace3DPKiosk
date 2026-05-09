@@ -31,7 +31,6 @@ ApplicationWindow { //Root app window
         PrepOverride,
         Message,
         Scan,
-        Printing,
         Loading,
         PrinterSelection
     }
@@ -66,9 +65,7 @@ ApplicationWindow { //Root app window
         switch (rootWindow.appstate) {
         case Main.AppState.Prep:
         case Main.AppState.PrinterSelection:
-        case Main.AppState.Printing:
-        case Main.AppState.UserScan:
-        case Main.AppState.StaffScan:
+        case Main.AppState.Scan:
         case Main.AppState.Loading:
             stateTimeoutTimer.restart()
             break
@@ -190,19 +187,6 @@ ApplicationWindow { //Root app window
                 Scan {
                     id: scanFrame
                     isStaff: rootWindow.scancontext >= Main.ScanContext.StaffAuth
-                }
-
-                Item {
-                    id: printingFrame
-
-                    Text {
-                        id: printingText
-                        text: "Printing now!" //In the future this will be set to user name based on airtable data
-                        font.pointSize: 100
-                        anchors.horizontalCenter: parent.horizontalCenter;
-                        anchors.verticalCenter: parent.verticalCenter;
-                        color: Theme.text
-                    }
                 }
 
                 Item {

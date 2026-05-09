@@ -31,7 +31,6 @@ enum AppState {
     PrepOverride,
     Message,
     Scan,
-    Printing,
     Loading
 };
 
